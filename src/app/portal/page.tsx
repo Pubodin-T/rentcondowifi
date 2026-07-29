@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   Wifi,
@@ -16,7 +16,7 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
-  Calendar,
+
   Zap,
   PlusCircle,
   X,
@@ -32,7 +32,7 @@ interface Package {
   description: string;
 }
 
-export default function PortalPage() {
+function PortalContent() {
   const searchParams = useSearchParams();
   const tok = searchParams.get('tok') || '';
   const redir = searchParams.get('redir') || 'https://www.google.com';
@@ -60,7 +60,6 @@ export default function PortalPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [slipFile, setSlipFile] = useState<File | null>(null);
   const [slipPreview, setSlipPreview] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
 
@@ -124,7 +123,6 @@ export default function PortalPage() {
   const handleSlipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSlipFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setSlipPreview(reader.result as string);
@@ -333,10 +331,9 @@ export default function PortalPage() {
           </div>
         )}
 
-        {/* Customer Profile & Expiry Check Screen (When Logged In / Registered) */}
+        {/* Customer Profile & Expiry Check Screen */}
         {successData ? (
           <div className="glass-card p-6 rounded-3xl border-sky-500/40 shadow-2xl animate-fade-in space-y-5">
-            {/* Header Status */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center border border-sky-500/30">
@@ -359,7 +356,6 @@ export default function PortalPage() {
               </button>
             </div>
 
-            {/* Subscription & Expiry Status Card */}
             <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/40 p-5 rounded-2xl border border-sky-500/30 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-xs font-semibold text-sky-400 uppercase tracking-wider">
@@ -377,7 +373,6 @@ export default function PortalPage() {
                 )}
               </div>
 
-              {/* Countdown Highlight */}
               <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 flex items-center justify-between">
                 <div className="flex items-center space-x-2.5">
                   <Clock className="w-5 h-5 text-sky-400" />
@@ -412,7 +407,6 @@ export default function PortalPage() {
               </div>
             </div>
 
-            {/* Action Buttons: Renew vs Connect */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <button
                 onClick={() => setShowRenewModal(true)}
@@ -434,7 +428,6 @@ export default function PortalPage() {
         ) : (
           /* Portal Form Card */
           <div className="glass-card rounded-3xl p-6 shadow-2xl border-slate-800">
-            {/* Tab Switcher */}
             <div className="grid grid-cols-2 p-1 bg-slate-900/80 rounded-2xl mb-6 border border-slate-800">
               <button
                 type="button"
@@ -468,7 +461,6 @@ export default function PortalPage() {
               </button>
             </div>
 
-            {/* Global Error Banner */}
             {errorMsg && (
               <div className="p-3.5 mb-5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm flex items-center space-x-2 animate-shake">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -476,7 +468,6 @@ export default function PortalPage() {
               </div>
             )}
 
-            {/* TAB 1: LOGIN */}
             {tab === 'LOGIN' && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
@@ -530,10 +521,8 @@ export default function PortalPage() {
               </form>
             )}
 
-            {/* TAB 2: REGISTER & PAY */}
             {tab === 'REGISTER' && (
               <form onSubmit={handleRegister} className="space-y-5">
-                {/* 1. Package Selector */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center space-x-1.5">
                     <Clock className="w-4 h-4 text-sky-400" />
@@ -571,7 +560,6 @@ export default function PortalPage() {
                   </div>
                 </div>
 
-                {/* 2. Account Credentials */}
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1">
@@ -625,7 +613,6 @@ export default function PortalPage() {
                   </div>
                 </div>
 
-                {/* 3. PromptPay QR Code Display */}
                 {selectedPackage && (
                   <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 text-center">
                     <div className="flex items-center justify-center space-x-1.5 text-xs text-sky-400 font-semibold uppercase tracking-wider mb-2">
@@ -659,7 +646,6 @@ export default function PortalPage() {
                   </div>
                 )}
 
-                {/* 4. Slip Upload */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
                     <Upload className="w-4 h-4 text-sky-400" />
@@ -705,7 +691,6 @@ export default function PortalPage() {
                   </div>
                 </div>
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -725,7 +710,6 @@ export default function PortalPage() {
           </div>
         )}
 
-        {/* Renewal Modal */}
         {showRenewModal && successData && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="glass-card max-w-md w-full rounded-3xl p-6 border-slate-800 relative shadow-2xl animate-fade-in space-y-4">
@@ -744,7 +728,6 @@ export default function PortalPage() {
               </div>
 
               <form onSubmit={handleRenewSubmit} className="space-y-4">
-                {/* 1. Renew Package Selection */}
                 <div className="grid grid-cols-2 gap-3">
                   {packages.map((pkg) => {
                     const isSelected = renewPackage?.id === pkg.id;
@@ -765,7 +748,6 @@ export default function PortalPage() {
                   })}
                 </div>
 
-                {/* 2. QR Code Display */}
                 {renewPackage && (
                   <div className="bg-slate-900/90 p-3 rounded-2xl border border-slate-800 text-center">
                     {renewQrCodeUrl && (
@@ -784,7 +766,6 @@ export default function PortalPage() {
                   </div>
                 )}
 
-                {/* 3. Slip Upload */}
                 <div>
                   <input
                     type="file"
@@ -815,7 +796,6 @@ export default function PortalPage() {
                   </label>
                 </div>
 
-                {/* Submit Renew Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -832,12 +812,19 @@ export default function PortalPage() {
           </div>
         )}
 
-        {/* Footer Guarantee Info */}
         <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center space-x-1">
           <ShieldCheck className="w-4 h-4 text-sky-500" />
           <span>ระบบปลอดภัย เชื่อมต่อนวัตกรรม WiFi ความเร็วสูง</span>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function PortalPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-slate-400">กำลังโหลด...</div>}>
+      <PortalContent />
+    </Suspense>
   );
 }

@@ -1,4 +1,80 @@
-datasource db {
+05:10:46.750 Running build in Washington, D.C., USA (East) – iad1
+05:10:46.751 Build machine configuration: 2 cores, 8 GB
+05:10:46.875 Cloning github.com/Pubodin-T/rentcondowifi (Branch: main, Commit: 3868f51)
+05:10:46.876 Previous build caches not available.
+05:10:47.064 Cloning completed: 189.000ms
+05:10:52.624 Running "vercel build"
+05:10:52.651 Vercel CLI 58.1.0
+05:10:53.378 Installing dependencies...
+05:11:00.659 npm warn deprecated next@14.1.0: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/security-update-2025-12-11 for more details.
+05:11:02.716 
+05:11:02.717 added 157 packages in 9s
+05:11:02.717 
+05:11:02.717 31 packages are looking for funding
+05:11:02.717   run `npm fund` for details
+05:11:02.765 Detected Next.js version: 14.1.0
+05:11:02.776 Running "npm run build"
+05:11:03.007 
+05:11:03.007 > rentwifi@1.0.0 build
+05:11:03.008 > prisma generate && next build
+05:11:03.008 
+05:11:03.500 Prisma schema loaded from prisma/schema.prisma
+05:11:03.930 
+05:11:03.931 ✔ Generated Prisma Client (v5.22.0) to ./node_modules/@prisma/client in 148ms
+05:11:03.932 
+05:11:03.932 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+05:11:03.933 
+05:11:03.933 Tip: Want real-time updates to your database without manual polling? Discover how with Pulse: https://pris.ly/tip-0-pulse
+05:11:03.933 
+05:11:04.797 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+05:11:04.797 This information is used to shape Next.js' roadmap and prioritize features.
+05:11:04.798 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+05:11:04.798 https://nextjs.org/telemetry
+05:11:04.798 
+05:11:04.877    ▲ Next.js 14.1.0
+05:11:04.878 
+05:11:04.897    Creating an optimized production build ...
+05:11:14.492  ✓ Compiled successfully
+05:11:14.493    Linting and checking validity of types ...
+05:11:17.787    Collecting page data ...
+05:11:18.965    Generating static pages (0/13) ...
+05:11:19.143 Fetch Slips Error: PrismaClientInitializationError: 
+05:11:19.144 Invalid `prisma.paymentSlip.findMany()` invocation:
+05:11:19.144 
+05:11:19.144 
+05:11:19.144 Can't reach database server at `db.zdvavhuvjjqzgswggmyl.supabase.co:5432`
+05:11:19.144 
+05:11:19.144 Please make sure your database server is running at `db.zdvavhuvjjqzgswggmyl.supabase.co:5432`.
+05:11:19.172     at $n.handleRequestError (/vercel/path0/node_modules/@prisma/client/runtime/library.js:121:7615)
+05:11:19.175     at $n.handleAndLogRequestError (/vercel/path0/node_modules/@prisma/client/runtime/library.js:121:6623)
+05:11:19.177     at $n.request (/vercel/path0/node_modules/@prisma/client/runtime/library.js:121:6307)
+05:11:19.177     at async l (/vercel/path0/node_modules/@prisma/client/runtime/library.js:130:9633)
+05:11:19.177     at async u (/vercel/path0/.next/server/app/api/admin/slips/route.js:1:480)
+05:11:19.177     at async /vercel/path0/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:42484
+05:11:19.177     at async eI.execute (/vercel/path0/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:32486)
+05:11:19.177     at async eI.handle (/vercel/path0/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:43737)
+05:11:19.180     at async exportAppRoute (/vercel/path0/node_modules/next/dist/export/routes/app-route.js:77:26)
+05:11:19.182     at async exportPageImpl (/vercel/path0/node_modules/next/dist/export/worker.js:175:20) {
+05:11:19.182   clientVersion: '5.22.0',
+05:11:19.183   errorCode: undefined
+05:11:19.183 }
+05:11:19.191 
+   Generating static pages (3/13) 
+05:11:19.213 
+   Generating static pages (6/13) 
+05:11:19.266 
+   Generating static pages (9/13) 
+05:11:19.775 
+05:11:19.776 
+ ✓ Generating static pages (13/13) 
+05:11:19.776  ⨯ useSearchParams() should be wrapped in a suspense boundary at page "/portal". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout
+05:11:19.777 
+05:11:19.778 Error occurred prerendering page "/portal". Read more: https://nextjs.org/docs/messages/prerender-error
+05:11:19.778 
+05:11:19.781 
+05:11:19.782 > Export encountered errors on following paths:
+05:11:19.783 	/portal/page: /portal
+05:11:19.824 Error: Command "npm run build" exited with 1datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
