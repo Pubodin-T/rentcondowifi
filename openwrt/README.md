@@ -1,4 +1,4 @@
-# คู่มือการติดตั้งและเชื่อมต่อ OpenNDS บน Router OpenWrt (Xiaomi AX3600)
+# คู่มือการติดตั้งและตั้งค่า OpenNDS บน Router OpenWrt (Xiaomi AX3600)
 
 ## 📡 1. การติดตั้ง OpenNDS บน OpenWrt
 เชื่อมต่อ SSH เข้าไปยัง Router OpenWrt ของคุณ:
@@ -8,16 +8,37 @@ opkg install opennds
 ```
 
 ## ⚙️ 2. คัดลอกและตั้งค่า `/etc/opennds/opennds.conf`
-นำไฟล์ [opennds.conf](file:///c:/Users/oatxs/Desktop/Rentwifi/openwrt/opennds.conf) ไปวางที่ `/etc/opennds/opennds.conf` บน Router
-และสั่งรีสตาร์ทบริการ:
+นำเนื้อหาในไฟล์ [opennds.conf](file:///c:/Users/oatxs/Desktop/Rentwifi/openwrt/opennds.conf) ไปวางที่ `/etc/opennds/opennds.conf` บน Router:
+
+```ini
+# OpenNDS Configuration File for OpenWrt Router
+# Location on Router: /etc/opennds/opennds.conf
+
+# Gateway Interface (br-lan หรือ Guest WiFi interface)
+gatewayinterface br-lan
+
+# Gateway Port (Default 2050)
+gatewayport 2050
+
+# Client Session Timeout (Minutes) - 0 = ปล่อยให้ระบบจัดการผ่าน Database / API ตัดสิทธิ์
+sessiontimeout 0
+checkinterval 60
+
+# Gateway Name
+gatewayname RentWiFi Captive Portal
+
+# Forward Authentication Service (FAS) Setup
+# ใช้ FQDN ของ Vercel โดยตรง (OpenNDS จะ Resolve IP ของ fasremotefqdn ให้อัตโนมัติ)
+fasremotefqdn rentcondowifi.vercel.app
+fasport 443
+fasssl 1
+faspath /portal
+```
+
+## 🚀 3. รีสตาร์ทเซอร์วิส OpenNDS
 ```bash
 service opennds restart
 service opennds enable
 ```
 
-## 🌐 3. การทำงานของระบบ Captive Portal
-1. ลูกค้าเชื่อมต่อ WiFi แบบเปิด (Free WiFi ไม่มีรหัส)
-2. เมื่อเปิดเบราว์เซอร์ OpenNDS จะทำการ Redirect ไปยังหน้าเว็บของคุณ (`/portal`)
-3. ลูกค้าทำการเลือกแพ็กเกจ (เช่น 7 วัน 75 บาท / 30 วัน 250 บาท) -> สแกน PromptPay QR -> แนบสลิปชำระเงิน
-4. ลูกค้าได้รับ Username / Password และสิทธิ์ใช้งานอินเทอร์เน็ตทันที
-5. ผู้ดูแลระบบ (Admin) เข้าไปที่หน้า `/admin` เพื่อตรวจสอบภาพสลิป หากพบสลิปปลอม สามารถกด **"ระงับบัญชี (Suspend User)"** ได้ทันที
+OpenNDS จะทำการ Resolve IP ของ `rentcondowifi.vercel.app` และอนุญาตให้ผู้ใช้เข้าหน้าพอร์ทัล / สแกน PromptPay ได้โดยอัตโนมัติก่อนล็อกอินครับ!

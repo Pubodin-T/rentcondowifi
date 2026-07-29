@@ -16,10 +16,10 @@ import {
   Clock,
   Sparkles,
   RefreshCw,
-
   Zap,
   PlusCircle,
   X,
+  HardDrive,
 } from 'lucide-react';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import QRCode from 'qrcode';
@@ -34,8 +34,12 @@ interface Package {
 
 function PortalContent() {
   const searchParams = useSearchParams();
-  const tok = searchParams.get('tok') || '';
-  const redir = searchParams.get('redir') || 'https://www.google.com';
+  const tok = searchParams.get('tok') || searchParams.get('token') || '';
+  const redir = searchParams.get('redir') || searchParams.get('target') || 'https://www.google.com';
+  const clientmac = searchParams.get('clientmac') || searchParams.get('mac') || '';
+  const clientip = searchParams.get('clientip') || searchParams.get('ip') || '';
+  const authaction = searchParams.get('authaction') || '';
+  const gatewayname = searchParams.get('gatewayname') || '';
 
   const [tab, setTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [packages, setPackages] = useState<Package[]>([
@@ -174,6 +178,8 @@ function PortalContent() {
           phone,
           packageId: selectedPackage.id,
           slipUrl: slipPreview,
+          clientmac,
+          clientip,
         }),
       });
 
@@ -209,6 +215,7 @@ function PortalContent() {
         body: JSON.stringify({
           username: loginUsername,
           password: loginPassword,
+          clientmac,
         }),
       });
 
@@ -273,7 +280,9 @@ function PortalContent() {
 
   // Redirect to OpenNDS Auth Gateway
   const handleUnlockInternet = () => {
-    if (tok) {
+    if (authaction && tok) {
+      window.location.href = `${authaction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
+    } else if (tok) {
       window.location.href = `/api/opennds/auth?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
     } else {
       window.location.href = redir;
@@ -307,11 +316,19 @@ function PortalContent() {
             <Wifi className="w-8 h-8 text-white animate-pulse" />
           </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-slate-100 to-sky-400 bg-clip-text text-transparent">
-            RentWiFi Portal
+            {gatewayname || 'RentWiFi Portal'}
           </h1>
           <p className="text-slate-400 text-sm mt-1">
             อินเทอร์เน็ต WiFi ความเร็วสูง สปีดแรง สมัครง่าย จ่ายผ่าน PromptPay
           </p>
+
+          {/* Client MAC Badge */}
+          {clientmac && (
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-slate-900/90 border border-slate-800 rounded-full text-[11px] text-slate-400 mt-2.5">
+              <HardDrive className="w-3 h-3 text-sky-400" />
+              <span>อุปกรณ์ (MAC): <strong className="text-slate-200 font-mono">{clientmac}</strong></span>
+            </div>
+          )}
         </div>
 
         {/* Suspended Account Alert Modal */}
