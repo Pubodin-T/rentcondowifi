@@ -1,0 +1,193 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum SessionStatus {
+  ONLINE
+  OFFLINE
+  REVOKED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  username     String?    @unique
+  email        String?    @unique
+  phone        String?    @unique
+  passwordHash String
+  role         Role       @default(USER)
+  status       UserStatus @default(ACTIVE)
+  referralCode String     @unique @default(uuid())
+  referredById String?
+  referredBy   User?      @relation("UserReferrals", fields: [referredById], references: [id])
+  referrees    User[]     @relation("UserReferrals")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+  devices       DeviceSession[]
+  transactions  PaymentTransaction[]
+  vouchersUsed  Voucher[]            @relation("VoucherUsedBy")
+  logs          SystemLog[]
+  referralsMade ReferralRecord[]     @relation("ReferrerRelation")
+  referralsGot  ReferralRecord[]     @relation("RefereeRelation")
+
+  @@map("users")
+}
+
+model Package {
+  id              String  @id @default(uuid())
+  name            String
+  price           Float
+  downloadSpeed   Int     // Mbps (0 = Unlimited)
+  uploadSpeed     Int     // Mbps (0 = Unlimited)
+  durationMinutes Int     // minutes (e.g., 30, 1440 for 1 day, 43200 for 30 days)
+  maxDevices      Int     @default(1)
+  isTrial         Boolean @default(false)
+  isActive        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions UserSubscription[]
+  transactions  PaymentTransaction[]
+  vouchers      Voucher[]
+
+  @@map("packages")
+}
+
+model UserSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  packageId  String
+  startAt    DateTime @default(now())
+  expireAt   DateTime
+  isActive   Boolean  @default(true)
+  isRenewal  Boolean  @default(false)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id])
+
+  createdAt DateTime        @default(now())
+  devices   DeviceSession[]
+
+  @@map("user_subscriptions")
+}
+
+model DeviceSession {
+  id             String        @id @default(uuid())
+  userId         String
+  subscriptionId String
+  macAddress     String        // e.g. "AA:BB:CC:DD:EE:FF"
+  ipAddress      String?
+  deviceName     String?       // e.g. "iPhone 15", "Samsung S24"
+  openndsTok     String?
+  status         SessionStatus @default(ONLINE)
+  lastSeenAt     DateTime      @default(now())
+  expireAt       DateTime
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription UserSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([macAddress])
+  @@index([userId])
+  @@map("device_sessions")
+}
+
+model Voucher {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  packageId    String
+  isUsed       Boolean   @default(false)
+  usedByUserId String?
+  usedAt       DateTime?
+  expiresAt    DateTime?
+
+  package Package @relation(fields: [packageId], references: [id])
+  usedBy  User?   @relation("VoucherUsedBy", fields: [usedByUserId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@map("vouchers")
+}
+
+model PaymentTransaction {
+  id               String            @id @default(uuid())
+  userId           String
+  packageId        String
+  amount           Float
+  promptpayPayload String?
+  refNo            String            @unique
+  status           TransactionStatus @default(PENDING)
+  paidAt           DateTime?
+  rawWebhook       String?           // JSON string payload from payment gateway
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_transactions")
+}
+
+model ReferralRecord {
+  id           String   @id @default(uuid())
+  referrerId   String
+  refereeId    String
+  rewardDays   Int      @default(7)
+  grantedAt    DateTime @default(now())
+
+  referrer User @relation("ReferrerRelation", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User @relation("RefereeRelation", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@map("referral_records")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model SystemLog {
+  id         String   @id @default(uuid())
+  action     String   // e.g. "USER_LOGIN", "MAC_TRANSFER", "OPENNDS_ALLOW", "PAYMENT_SUCCESS"
+  actorUserId String?
+  macAddress String?
+  details    String?  // JSON string or text details
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@map("system_logs")
+}

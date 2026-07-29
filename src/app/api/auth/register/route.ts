@@ -1,0 +1,88 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { username, password, phone, packageId, slipUrl } = body;
+
+    if (!username || !password || !packageId || !slipUrl) {
+      return NextResponse.json(
+        { success: false, message: 'กรุณากรอกข้อมูลและแนบสลิปให้ครบถ้วน' },
+        { status: 400 }
+      );
+    }
+
+    // Check if username exists
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { success: false, message: 'ชื่อผู้ใช้นี้มีในระบบแล้ว กรุณาใช้ชื่ออื่น' },
+        { status: 400 }
+      );
+    }
+
+    // Get Package duration
+    const pkg = await prisma.package.findUnique({
+      where: { id: packageId },
+    });
+
+    if (!pkg) {
+      return NextResponse.json(
+        { success: false, message: 'ไม่พบแพ็กเกจที่เลือก' },
+        { status: 404 }
+      );
+    }
+
+    // Hash Password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Calculate Access Expiry Date (Instant Access Granted)
+    const now = new Date();
+    const expireAt = new Date(now.getTime() + pkg.durationDays * 24 * 60 * 60 * 1000);
+
+    // Create User & Payment Slip in a transaction
+    const newUser = await prisma.user.create({
+      data: {
+        username,
+        passwordHash,
+        phone,
+        role: 'USER',
+        status: 'ACTIVE',
+        expireAt,
+        slips: {
+          create: {
+            packageId: pkg.id,
+            amount: pkg.price,
+            slipUrl,
+            status: 'PENDING',
+          },
+        },
+      },
+      include: {
+        slips: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'สมัครใช้งานและแจ้งชำระเงินสำเร็จ!',
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        expireAt: newUser.expireAt,
+        packageName: pkg.name,
+      },
+    });
+  } catch (error) {
+    console.error('Registration Error:', error);
+    return NextResponse.json(
+      { success: false, message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก' },
+      { status: 500 }
+    );
+  }
+}

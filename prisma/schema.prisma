@@ -1,0 +1,62 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String
+  phone        String?
+  role         String    @default("USER") // USER, ADMIN
+  status       String    @default("ACTIVE") // ACTIVE, SUSPENDED
+  expireAt     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  slips PaymentSlip[]
+
+  @@map("users")
+}
+
+model Package {
+  id           String   @id @default(uuid())
+  name         String
+  price        Float
+  durationDays Int
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  slips PaymentSlip[]
+
+  @@map("packages")
+}
+
+model PaymentSlip {
+  id        String   @id @default(uuid())
+  userId    String
+  packageId String
+  amount    Float
+  slipUrl   String   // Base64 or uploaded image URL
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  note      String?
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  package Package @relation(fields: [packageId], references: [id])
+
+  @@map("payment_slips")
+}
+
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+
+  @@map("system_settings")
+}
