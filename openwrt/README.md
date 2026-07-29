@@ -1,10 +1,10 @@
 # คู่มือการติดตั้งและตั้งค่า OpenNDS บน Router OpenWrt (Xiaomi AX3600)
 
-## 📡 1. การติดตั้ง OpenNDS บน OpenWrt
+## 📡 1. การติดตั้ง OpenNDS และแพ็กเกจ SSL
 เชื่อมต่อ SSH เข้าไปยัง Router OpenWrt ของคุณ:
 ```bash
 opkg update
-opkg install opennds
+opkg install opennds ca-bundle ca-certificates
 ```
 
 ## ⚙️ 2. คัดลอกและตั้งค่า `/etc/opennds/opennds.conf`
@@ -14,25 +14,24 @@ opkg install opennds
 # OpenNDS Configuration File for OpenWrt Router
 # Location on Router: /etc/opennds/opennds.conf
 
-# Gateway Interface (br-lan หรือ Guest WiFi interface)
 gatewayinterface br-lan
-
-# Gateway Port (Default 2050)
 gatewayport 2050
-
-# Client Session Timeout (Minutes) - 0 = ปล่อยให้ระบบจัดการผ่าน Database / API ตัดสิทธิ์
 sessiontimeout 0
 checkinterval 60
 
-# Gateway Name
 gatewayname RentWiFi Captive Portal
 
-# Forward Authentication Service (FAS) Setup
-# ใช้ FQDN ของ Vercel โดยตรง (OpenNDS จะ Resolve IP ของ fasremotefqdn ให้อัตโนมัติ)
+# *** สำคัญมาก: fassecurelevel 1 บังคับใช้ Remote FAS ***
+fassecurelevel 1
+
 fasremotefqdn rentcondowifi.vercel.app
 fasport 443
 fasssl 1
 faspath /portal
+
+preauthenticated_users {
+    allow tcp port 443 to 0.0.0.0/0
+}
 ```
 
 ## 🚀 3. รีสตาร์ทเซอร์วิส OpenNDS
@@ -41,4 +40,6 @@ service opennds restart
 service opennds enable
 ```
 
-OpenNDS จะทำการ Resolve IP ของ `rentcondowifi.vercel.app` และอนุญาตให้ผู้ใช้เข้าหน้าพอร์ทัล / สแกน PromptPay ได้โดยอัตโนมัติก่อนล็อกอินครับ!
+## 💡 วิธีการทดสอบบนมือถือ (กรณีเน็ตยังเด้งเข้าหน้าเดิม):
+1. **กด Forget/ลบเครือข่าย WiFi บนมือถือเดิม** ออกก่อน เพื่อล้างแคช Captive Portal
+2. เชื่อมต่อ WiFi ใหม่อีกครั้ง มือถือจะเด้งไปที่ `https://rentcondowifi.vercel.app/portal` ทันที!
