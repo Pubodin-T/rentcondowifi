@@ -34,12 +34,43 @@ interface Package {
 
 function PortalContent() {
   const searchParams = useSearchParams();
-  const tok = searchParams.get('tok') || searchParams.get('token') || '';
-  const redir = searchParams.get('redir') || searchParams.get('target') || 'https://www.google.com';
-  const clientmac = searchParams.get('clientmac') || searchParams.get('mac') || '';
-  const clientip = searchParams.get('clientip') || searchParams.get('ip') || '';
+
+  // OpenNDS v10 FAS Level 1: all params come inside a base64-encoded 'fas' query param
+  const fasRaw = searchParams.get('fas') || '';
+  let fasHid = '';
+  let fasGatewayAddress = '';
+  let fasOriginUrl = '';
+  let fasClientMac = '';
+  let fasClientIp = '';
+  let fasGatewayName = '';
+
+  if (fasRaw) {
+    try {
+      const decoded = atob(fasRaw);
+      const parts = decoded.split(',').map((s: string) => s.trim());
+      for (const part of parts) {
+        const [key, ...valParts] = part.split('=');
+        const val = decodeURIComponent(valParts.join('=').trim());
+        if (key === 'hid') fasHid = val;
+        else if (key === 'gatewayaddress') fasGatewayAddress = val;
+        else if (key === 'originurl') fasOriginUrl = val;
+        else if (key === 'clientmac') fasClientMac = val;
+        else if (key === 'clientip') fasClientIp = val;
+        else if (key === 'gatewayname') fasGatewayName = val;
+      }
+    } catch (e) {
+      console.error('Failed to decode FAS parameter', e);
+    }
+  }
+
+  // Fallback to legacy query params if fas is not present
+  const tok = fasHid || searchParams.get('tok') || searchParams.get('token') || '';
+  const redir = fasOriginUrl || searchParams.get('redir') || searchParams.get('target') || 'https://www.google.com';
+  const clientmac = fasClientMac || searchParams.get('clientmac') || searchParams.get('mac') || '';
+  const clientip = fasClientIp || searchParams.get('clientip') || searchParams.get('ip') || '';
   const authaction = searchParams.get('authaction') || '';
-  const gatewayname = searchParams.get('gatewayname') || '';
+  const gatewayname = fasGatewayName || searchParams.get('gatewayname') || '';
+  const gatewayAddress = fasGatewayAddress || '192.168.2.1:2050';
 
   const [tab, setTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [packages, setPackages] = useState<Package[]>([
@@ -278,33 +309,34 @@ function PortalContent() {
     }
   };
 
-  // Redirect to OpenNDS Auth Gateway
+  // Redirect to OpenNDS Auth Gateway (OpenNDS v10 FAS Level 1 uses 'hid')
   const handleUnlockInternet = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     setLoading(true);
 
-    let targetAction = authaction;
-    if (!targetAction || targetAction.includes('status.client')) {
-      targetAction = 'http://192.168.2.1:2050/opennds_auth/';
-    }
-
+    const gwAddr = gatewayAddress.includes('://') ? gatewayAddress : `http://${gatewayAddress}`;
     const targetRedir = redir || 'https://www.google.com';
 
     if (tok) {
-      const authUrl = `${targetAction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
+      // OpenNDS v10 FAS Level 1: authenticate using hid parameter
+      const authUrl = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
 
-      // 1. Silent unlock request to OpenNDS router port 2050
+      // 1. Silent unlock request via fetch (bypasses iOS mixed-content block)
       try {
-        await fetch(`http://192.168.2.1:2050/opennds_auth/?tok=${encodeURIComponent(tok)}`, { mode: 'no-cors' });
+        await fetch(`${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`, { mode: 'no-cors' });
       } catch (err) {
         console.log('Silent unlock ping sent');
       }
 
-      // 2. Navigate browser to OpenNDS auth endpoint / target
+      // 2. Also try via Image beacon (more reliable on iOS CaptiveNetworkSupport sheet)
+      const img = new Image();
+      img.src = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
+
+      // 3. Navigate browser after short delay
       setTimeout(() => {
         window.location.href = authUrl;
-      }, 400);
+      }, 600);
     } else {
       window.location.href = targetRedir;
     }
