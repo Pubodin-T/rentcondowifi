@@ -279,18 +279,34 @@ function PortalContent() {
   };
 
   // Redirect to OpenNDS Auth Gateway
-  const handleUnlockInternet = () => {
+  const handleUnlockInternet = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    setLoading(true);
+
     let targetAction = authaction;
-    if (targetAction && targetAction.includes('status.client')) {
-      targetAction = targetAction.replace('status.client', '192.168.2.1');
+    if (!targetAction || targetAction.includes('status.client')) {
+      targetAction = 'http://192.168.2.1:2050/opennds_auth/';
     }
 
-    if (targetAction && tok) {
-      window.location.href = `${targetAction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
-    } else if (tok) {
-      window.location.href = `http://192.168.2.1:2050/opennds_auth/?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
+    const targetRedir = redir || 'https://www.google.com';
+
+    if (tok) {
+      const authUrl = `${targetAction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
+
+      // 1. Silent unlock request to OpenNDS router port 2050
+      try {
+        await fetch(`http://192.168.2.1:2050/opennds_auth/?tok=${encodeURIComponent(tok)}`, { mode: 'no-cors' });
+      } catch (err) {
+        console.log('Silent unlock ping sent');
+      }
+
+      // 2. Navigate browser to OpenNDS auth endpoint / target
+      setTimeout(() => {
+        window.location.href = authUrl;
+      }, 400);
     } else {
-      window.location.href = redir;
+      window.location.href = targetRedir;
     }
   };
 
