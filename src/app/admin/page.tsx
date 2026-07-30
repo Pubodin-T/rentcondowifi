@@ -48,6 +48,36 @@ export default function AdminPage() {
   const [selectedSlip, setSelectedSlip] = useState<SlipItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [password, setPassword] = useState('');
+  const [authed, setAuthed] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('admin_authed') === 'true') {
+      setAuthed(true);
+    }
+  }, []);
+
+  const checkAuth = () => {
+    if (password === 'Oat13392') {
+      setAuthed(true);
+      setAuthError('');
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('admin_authed', 'true');
+      }
+    } else {
+      setAuthError('รหัสผ่านไม่ถูกต้อง');
+    }
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('admin_authed');
+    }
+    setAuthed(false);
+    setPassword('');
+  };
+
   const fetchSlips = async () => {
     setLoading(true);
     try {
@@ -64,8 +94,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchSlips();
-  }, []);
+    if (authed) {
+      fetchSlips();
+    }
+  }, [authed]);
 
   // Handle Admin Action (Approve Slip or Suspend User)
   const handleAction = async (userId: string, slipId: string, action: string) => {
@@ -103,6 +135,39 @@ export default function AdminPage() {
     .filter((s) => s.status === 'APPROVED' || s.status === 'PENDING')
     .reduce((sum, s) => sum + s.amount, 0);
 
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+        <div className="w-full max-w-sm glass-card border border-slate-800 rounded-3xl p-8 space-y-6 shadow-2xl">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-2xl flex items-center justify-center mx-auto border border-sky-500/20">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h1 className="text-xl font-bold text-white">RentWiFi Admin Panel</h1>
+            <p className="text-slate-400 text-sm">กรุณาใส่รหัสผ่าน Admin</p>
+          </div>
+          <div className="space-y-3">
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && checkAuth()}
+              placeholder="รหัสผ่าน"
+              className="w-full glass-input rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+            />
+            {authError && <p className="text-red-400 text-xs font-medium text-center">{authError}</p>}
+            <button
+              onClick={checkAuth}
+              className="w-full py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold rounded-xl transition shadow-lg shadow-sky-500/20"
+            >
+              เข้าสู่ระบบ
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -133,6 +198,15 @@ export default function AdminPage() {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               <span>รีเฟรชข้อมูล</span>
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-sm font-medium transition flex items-center space-x-1.5"
+              title="ออกจากระบบ Admin"
+            >
+              <Lock className="w-4 h-4" />
+              <span>ล็อกเอาต์</span>
             </button>
           </div>
         </div>

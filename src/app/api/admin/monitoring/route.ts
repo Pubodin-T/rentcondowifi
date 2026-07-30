@@ -191,9 +191,29 @@ export async function GET(req: Request) {
       take: 100,
     });
 
-    // Get total log count
-    const totalDnsLogs = await prisma.dnsLog.count();
-    const totalBandwidthLogs = await prisma.bandwidthLog.count();
+    const [totalDnsLogs, totalBandwidthLogs] = await Promise.all([
+      prisma.dnsLog.count(),
+      prisma.bandwidthLog.count(),
+    ]);
+
+    // Map MAC addresses to Usernames
+    const macSettings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: 'mac_' } },
+    });
+    const userIds = macSettings.map((s) => s.value).filter(Boolean);
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, phone: true },
+    });
+    const userByIdMap = new Map(users.map((u) => [u.id, u]));
+    const macToUserMap: Record<string, { username: string; phone?: string | null }> = {};
+    for (const s of macSettings) {
+      const mac = s.key.replace('mac_', '').toLowerCase();
+      const u = userByIdMap.get(s.value);
+      if (u) {
+        macToUserMap[mac] = { username: u.username, phone: u.phone };
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -210,6 +230,7 @@ export async function GET(req: Request) {
         domain: d.domain,
         count: d._count.domain,
       })),
+      userMap: macToUserMap,
       totalDnsLogs,
       totalBandwidthLogs,
     });

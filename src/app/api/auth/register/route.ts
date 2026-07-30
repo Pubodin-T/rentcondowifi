@@ -7,9 +7,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { username, password, phone, packageId, slipUrl } = body;
 
-    if (!username || !password || !packageId || !slipUrl) {
+    if (!username || !password || !phone || !packageId || !slipUrl) {
       return NextResponse.json(
-        { success: false, message: 'กรุณากรอกข้อมูลและแนบสลิปให้ครบถ้วน' },
+        { success: false, message: 'กรุณากรอกข้อมูล Username, Password, เบอร์โทรศัพท์ และแนบสลิปให้ครบถ้วน' },
         { status: 400 }
       );
     }

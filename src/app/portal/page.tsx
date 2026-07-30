@@ -20,6 +20,10 @@ import {
   PlusCircle,
   X,
   HardDrive,
+  Eye,
+  EyeOff,
+  KeyRound,
+  MessageCircle,
 } from 'lucide-react';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import QRCode from 'qrcode';
@@ -108,6 +112,20 @@ function PortalContent() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  // Password Visibility States
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Forgot Password Modal States
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotErrorMsg, setForgotErrorMsg] = useState('');
+  const [forgotSuccessMsg, setForgotSuccessMsg] = useState('');
+
   // UI Flow States
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -179,6 +197,50 @@ function PortalContent() {
     }
   };
 
+  // Handle Reset Password
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotErrorMsg('');
+    setForgotSuccessMsg('');
+
+    if (!forgotUsername || !forgotPhone || !forgotNewPassword) {
+      setForgotErrorMsg('กรุณากรอก Username, เบอร์โทรศัพท์ และรหัสผ่านใหม่ให้ครบถ้วน');
+      return;
+    }
+
+    setForgotLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: forgotUsername,
+          phone: forgotPhone,
+          newPassword: forgotNewPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setForgotErrorMsg(data.message || 'เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน');
+      } else {
+        setForgotSuccessMsg(data.message || 'เปลี่ยนรหัสผ่านสำเร็จ!');
+        setTimeout(() => {
+          setLoginUsername(forgotUsername);
+          setShowForgotModal(false);
+          setForgotUsername('');
+          setForgotPhone('');
+          setForgotNewPassword('');
+          setForgotSuccessMsg('');
+        }, 1800);
+      }
+    } catch (err) {
+      setForgotErrorMsg('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   // Handle Registration & Slip Submit
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,6 +248,11 @@ function PortalContent() {
 
     if (!username || !password) {
       setErrorMsg('กรุณากรอก Username และ Password');
+      return;
+    }
+
+    if (!phone || !phone.trim()) {
+      setErrorMsg('กรุณากรอกเบอร์โทรศัพท์สำหรับลงทะเบียน (จำเป็นต้องใช้ในกรณีลืมรหัสผ่าน)');
       return;
     }
 
@@ -566,19 +633,41 @@ function PortalContent() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">
-                    Password (รหัสผ่าน)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-400">
+                      Password (รหัสผ่าน)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotUsername(loginUsername);
+                        setForgotErrorMsg('');
+                        setForgotSuccessMsg('');
+                        setShowForgotModal(true);
+                      }}
+                      className="text-xs text-sky-400 hover:text-sky-300 transition hover:underline"
+                    >
+                      ลืมรหัสผ่าน?
+                    </button>
+                  </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                     <input
-                      type="password"
+                      type={showLoginPassword ? 'text' : 'password'}
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full glass-input pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
+                      className="w-full glass-input pl-10 pr-10 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 transition"
+                      tabIndex={-1}
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 
@@ -606,14 +695,14 @@ function PortalContent() {
                     <Clock className="w-4 h-4 text-sky-400" />
                     <span>เลือกแพ็กเกจเช่าใช้งาน</span>
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {packages.map((pkg) => {
                       const isSelected = selectedPackage?.id === pkg.id;
                       return (
                         <div
                           key={pkg.id}
                           onClick={() => setSelectedPackage(pkg)}
-                          className={`cursor-pointer p-4 rounded-2xl border transition-all relative overflow-hidden ${
+                          className={`cursor-pointer p-4 rounded-2xl border transition-all relative overflow-hidden flex flex-col justify-between ${
                             isSelected
                               ? 'bg-sky-500/15 border-sky-500 shadow-md shadow-sky-500/10'
                               : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
@@ -624,12 +713,14 @@ function PortalContent() {
                               <CheckCircle2 className="w-5 h-5" />
                             </div>
                           )}
-                          <div className="text-lg font-bold text-white mb-0.5">{pkg.name}</div>
-                          <div className="text-2xl font-extrabold text-sky-400">
-                            {pkg.price}{' '}
-                            <span className="text-xs font-normal text-slate-400">บาท</span>
+                          <div>
+                            <div className="text-lg font-bold text-white mb-0.5">{pkg.name}</div>
+                            <div className="text-2xl font-extrabold text-sky-400">
+                              {pkg.price}{' '}
+                              <span className="text-xs font-normal text-slate-400">บาท</span>
+                            </div>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
+                          <p className="text-xs text-slate-300 mt-2 leading-relaxed whitespace-pre-line font-normal border-t border-slate-800/80 pt-2">
                             {pkg.description}
                           </p>
                         </div>
@@ -656,7 +747,7 @@ function PortalContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-slate-400 mb-1">
                         ตั้ง Password
@@ -664,23 +755,32 @@ function PortalContent() {
                       <div className="relative">
                         <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                         <input
-                          type="password"
+                          type={showRegisterPassword ? 'text' : 'password'}
                           required
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="w-full glass-input pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
+                          className="w-full glass-input pl-10 pr-10 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowRegisterPassword(!showRegisterPassword)}
+                          className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 transition"
+                          tabIndex={-1}
+                        >
+                          {showRegisterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-slate-400 mb-1">
-                        เบอร์โทรศัพท์ (ถ้ามี)
+                        เบอร์โทรศัพท์ <span className="text-sky-400 font-semibold">(จำเป็น)</span>
                       </label>
                       <div className="relative">
                         <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                         <input
                           type="tel"
+                          required
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="08X-XXX-XXXX"
@@ -890,9 +990,134 @@ function PortalContent() {
           </div>
         )}
 
-        <div className="mt-6 text-center text-xs text-slate-500 flex items-center justify-center space-x-1">
-          <ShieldCheck className="w-4 h-4 text-sky-500" />
-          <span>ระบบปลอดภัย เชื่อมต่อนวัตกรรม WiFi ความเร็วสูง</span>
+        {showForgotModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="glass-card max-w-md w-full rounded-3xl p-6 border-slate-800 relative shadow-2xl animate-fade-in space-y-4">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-full bg-slate-800/80"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="text-center space-y-1">
+                <div className="w-12 h-12 bg-sky-500/10 text-sky-400 rounded-2xl flex items-center justify-center mx-auto border border-sky-500/20 mb-2">
+                  <KeyRound className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold text-white">ลืมรหัสผ่าน / ตั้งรหัสผ่านใหม่</h3>
+                <p className="text-xs text-slate-400">
+                  กรอก Username และเบอร์โทรศัพท์ที่ลงทะเบียนไว้เพื่อตั้งรหัสผ่านใหม่
+                </p>
+              </div>
+
+              {forgotErrorMsg && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{forgotErrorMsg}</span>
+                </div>
+              )}
+
+              {forgotSuccessMsg && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{forgotSuccessMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleResetPassword} className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    Username (ชื่อผู้ใช้งาน)
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    <input
+                      type="text"
+                      required
+                      value={forgotUsername}
+                      onChange={(e) => setForgotUsername(e.target.value)}
+                      placeholder="กรอก Username ที่ลงทะเบียน"
+                      className="w-full glass-input pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    เบอร์โทรศัพท์ที่ลงทะเบียน
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    <input
+                      type="tel"
+                      required
+                      value={forgotPhone}
+                      onChange={(e) => setForgotPhone(e.target.value)}
+                      placeholder="08X-XXX-XXXX"
+                      className="w-full glass-input pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    ตั้งรหัสผ่านใหม่ (New Password)
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    <input
+                      type={showForgotPassword ? 'text' : 'password'}
+                      required
+                      value={forgotNewPassword}
+                      onChange={(e) => setForgotNewPassword(e.target.value)}
+                      placeholder="กรอกรหัสผ่านใหม่"
+                      className="w-full glass-input pl-10 pr-10 py-2.5 rounded-xl text-sm text-white placeholder-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(!showForgotPassword)}
+                      className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 transition"
+                      tabIndex={-1}
+                    >
+                      {showForgotPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 disabled:opacity-50 text-white font-semibold rounded-xl shadow-lg transition flex items-center justify-center space-x-2 text-sm mt-2"
+                >
+                  {forgotLoading ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <span>ยืนยันตั้งรหัสผ่านใหม่</span>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 pt-4 border-t border-slate-800/80 text-center space-y-3">
+          <div className="flex items-center justify-center space-x-1.5 text-xs text-slate-400">
+            <ShieldCheck className="w-4 h-4 text-sky-500" />
+            <span>ระบบปลอดภัย เชื่อมต่อนวัตกรรม WiFi ความเร็วสูง</span>
+          </div>
+
+          <div className="flex flex-col items-center justify-center">
+            <a
+              href="https://line.me/ti/p/~tieanthong"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500/50 rounded-xl text-emerald-400 text-xs font-medium transition-all group shadow-lg shadow-emerald-500/5"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span>ติดต่อผู้ดูแลระบบ: <strong className="font-semibold text-emerald-300">LINE ID: tieanthong</strong></span>
+            </a>
+          </div>
         </div>
       </div>
     </main>

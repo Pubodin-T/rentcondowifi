@@ -56,9 +56,16 @@ function formatKB(kb: number) {
   return `${(kb / 1024 / 1024).toFixed(2)} GB`;
 }
 
-function LiveClientCard({ client }: { client: LiveClient }) {
+function LiveClientCard({
+  client,
+  userMap,
+}: {
+  client: LiveClient;
+  userMap: Record<string, { username: string; phone?: string | null }>;
+}) {
   const totalMb = (client.downloadKb + client.uploadKb) / 1024;
   const barWidth = Math.min(100, (totalMb / 500) * 100);
+  const userInfo = userMap[client.mac.toLowerCase()];
 
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 space-y-3">
@@ -67,6 +74,11 @@ function LiveClientCard({ client }: { client: LiveClient }) {
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${client.state === 'Authenticated' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
             <span className="text-white font-mono text-sm">{client.mac}</span>
+            {userInfo && (
+              <span className="text-xs font-sans text-sky-400 font-semibold bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+                👤 {userInfo.username}
+              </span>
+            )}
           </div>
           <div className="text-slate-400 text-xs mt-1">{client.clientIp}</div>
         </div>
@@ -139,14 +151,11 @@ function DomainBadge({ domain }: { domain: string }) {
 }
 
 export default function MonitoringPage() {
-  const [password, setPassword] = useState('');
-  const [authed, setAuthed] = useState(false);
-  const [authError, setAuthError] = useState('');
-
   const [liveClients, setLiveClients] = useState<LiveClient[]>([]);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStatEntry[]>([]);
   const [topDomains, setTopDomains] = useState<DomainEntry[]>([]);
   const [userDomains, setUserDomains] = useState<UserDomainEntry[]>([]);
+  const [userMap, setUserMap] = useState<Record<string, { username: string; phone?: string | null }>>({});
   const [totalDnsLogs, setTotalDnsLogs] = useState(0);
   const [totalBwLogs, setTotalBwLogs] = useState(0);
 
@@ -156,15 +165,6 @@ export default function MonitoringPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [domainSearch, setDomainSearch] = useState('');
   const [expandedMac, setExpandedMac] = useState<string | null>(null);
-
-  const checkAuth = () => {
-    if (password === 'admin1234') {
-      setAuthed(true);
-      setAuthError('');
-    } else {
-      setAuthError('รหัสผ่านไม่ถูกต้อง');
-    }
-  };
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -176,6 +176,7 @@ export default function MonitoringPage() {
         setMonthlyStats(data.monthlyStats ?? []);
         setTopDomains(data.topDomains ?? []);
         setUserDomains(data.userDomains ?? []);
+        setUserMap(data.userMap ?? {});
         setTotalDnsLogs(data.totalDnsLogs ?? 0);
         setTotalBwLogs(data.totalBandwidthLogs ?? 0);
         setLastUpdated(new Date());
@@ -208,45 +209,11 @@ export default function MonitoringPage() {
   };
 
   useEffect(() => {
-    if (authed) {
-      fetchStats();
-      // Auto-refresh every 30s
-      const interval = setInterval(fetchStats, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [authed, fetchStats]);
-
-  // Auth gate
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center px-4">
-        <div className="w-full max-w-sm bg-slate-800/60 border border-slate-700/50 rounded-3xl p-8 space-y-6">
-          <div className="text-center">
-            <Activity className="w-10 h-10 text-sky-400 mx-auto mb-3" />
-            <h1 className="text-xl font-bold text-white">Monitoring Dashboard</h1>
-            <p className="text-slate-400 text-sm mt-1">กรุณาใส่รหัสผ่าน Admin</p>
-          </div>
-          <div className="space-y-3">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && checkAuth()}
-              placeholder="รหัสผ่าน"
-              className="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
-            />
-            {authError && <p className="text-red-400 text-sm">{authError}</p>}
-            <button
-              onClick={checkAuth}
-              className="w-full py-3 bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold rounded-xl"
-            >
-              เข้าสู่ระบบ
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    fetchStats();
+    // Auto-refresh every 30s
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   const filteredDomains = domainSearch
     ? topDomains.filter((d) => d.domain.includes(domainSearch))
@@ -334,7 +301,7 @@ export default function MonitoringPage() {
           ) : (
             <div className="space-y-3">
               {liveClients.map((c) => (
-                <LiveClientCard key={c.mac} client={c} />
+                <LiveClientCard key={c.mac} client={c} userMap={userMap} />
               ))}
             </div>
           )}
@@ -344,7 +311,7 @@ export default function MonitoringPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-white flex items-center space-x-2">
             <TrendingUp className="w-5 h-5 text-sky-400" />
-            <span>Bandwidth เดือนนี้ (per device)</span>
+            <span>Bandwidth เดือนนี้ (ต่ออุปกรณ์ / ผู้ใช้งาน)</span>
           </h2>
 
           {monthlyStats.length === 0 ? (
@@ -361,11 +328,19 @@ export default function MonitoringPage() {
                   const total = dl + ul;
                   const max = monthlyStats.reduce((m, e) => Math.max(m, (e._sum.downloadMb ?? 0) + (e._sum.uploadMb ?? 0)), 1);
                   const pct = Math.min(100, (total / max) * 100);
+                  const userInfo = userMap[entry.mac.toLowerCase()];
 
                   return (
                     <div key={entry.mac} className="bg-slate-800/60 border border-slate-700/40 rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs text-slate-300">{entry.mac}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono text-xs text-slate-300">{entry.mac}</span>
+                          {userInfo && (
+                            <span className="text-xs text-sky-400 font-semibold bg-sky-500/10 px-1.5 py-0.5 rounded">
+                              👤 {userInfo.username}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs text-white font-semibold">{formatBytes(total)}</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
@@ -447,13 +422,14 @@ export default function MonitoringPage() {
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-white flex items-center space-x-2">
             <Activity className="w-5 h-5 text-amber-400" />
-            <span>Domain ต่อ Device (24 ชม.ล่าสุด)</span>
+            <span>Domain ต่อ Device / ผู้ใช้งาน (24 ชม.ล่าสุด)</span>
           </h2>
           <div className="space-y-3">
             {uniqueMacs.map((mac) => {
               const domains = userDomains.filter((d) => d.mac === mac);
               const isExpanded = expandedMac === mac;
               const shown = isExpanded ? domains : domains.slice(0, 5);
+              const userInfo = userMap[mac.toLowerCase()];
               return (
                 <div key={mac} className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
                   <div
@@ -463,6 +439,13 @@ export default function MonitoringPage() {
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-amber-400 rounded-full" />
                       <span className="font-mono text-sm text-white">{mac}</span>
+                      {userInfo ? (
+                        <span className="text-xs font-semibold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          👤 {userInfo.username}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-500">(ไม่ระบุชื่อผู้ใช้)</span>
+                      )}
                       <span className="text-xs text-slate-500">({domains.length} domains)</span>
                     </div>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
