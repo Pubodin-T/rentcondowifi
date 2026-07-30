@@ -113,6 +113,7 @@ function PortalContent() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successData, setSuccessData] = useState<any>(null);
   const [suspendedMsg, setSuspendedMsg] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0812345678';
 
@@ -313,32 +314,29 @@ function PortalContent() {
   const handleUnlockInternet = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    setLoading(true);
+    setIsConnecting(true);
 
     const gwAddr = gatewayAddress.includes('://') ? gatewayAddress : `http://${gatewayAddress}`;
-    const targetRedir = redir || 'https://www.google.com';
 
     if (tok) {
-      // OpenNDS v10 FAS Level 1: authenticate using hid parameter
-      const authUrl = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
-
-      // 1. Silent unlock request via fetch (bypasses iOS mixed-content block)
-      try {
-        await fetch(`${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`, { mode: 'no-cors' });
-      } catch (err) {
-        console.log('Silent unlock ping sent');
-      }
-
-      // 2. Also try via Image beacon (more reliable on iOS CaptiveNetworkSupport sheet)
+      // 1. Send auth via multiple methods to ensure at least one reaches the router
+      // Image beacon: HTTP images from HTTPS are "optionally-blockable" mixed content (usually allowed)
       const img = new Image();
-      img.src = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}&redir=${encodeURIComponent(targetRedir)}`;
+      img.src = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`;
 
-      // 3. Navigate browser after short delay
+      // Fetch with no-cors as backup
+      try {
+        fetch(`${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`, { mode: 'no-cors' }).catch(() => {});
+      } catch (err) { /* ignore */ }
+
+      // 2. Wait for OpenNDS to process the authentication
+      // Then redirect to Apple captive detection URL to close the iOS captive sheet
       setTimeout(() => {
-        window.location.href = authUrl;
-      }, 600);
+        // Apple CNA checks this URL: if it returns "Success", captive sheet closes
+        window.location.href = 'http://captive.apple.com/hotspot-detect.html';
+      }, 1500);
     } else {
-      window.location.href = targetRedir;
+      window.location.href = 'https://www.google.com';
     }
   };
 
@@ -488,10 +486,20 @@ function PortalContent() {
 
               <button
                 onClick={handleUnlockInternet}
-                className="py-3 px-4 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold rounded-2xl shadow-lg shadow-sky-500/25 transition flex items-center justify-center space-x-2 text-sm"
+                disabled={isConnecting}
+                className={`py-3 px-4 text-white font-semibold rounded-2xl shadow-lg transition flex items-center justify-center space-x-2 text-sm ${isConnecting ? 'bg-slate-600 cursor-wait shadow-none' : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-sky-500/25'}`}
               >
-                <span>เชื่อมต่ออินเทอร์เน็ต</span>
-                <ArrowRight className="w-4 h-4" />
+                {isConnecting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>กำลังเชื่อมต่อ...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>เชื่อมต่ออินเทอร์เน็ต</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>
