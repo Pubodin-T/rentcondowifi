@@ -10,9 +10,10 @@ export async function GET() {
       orderBy: { price: 'asc' },
     });
     return NextResponse.json({ success: true, packages });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Fetch Packages Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch packages' },
+      { success: false, message: error?.message || 'Failed to fetch packages', errorDetails: String(error) },
       { status: 500 }
     );
   }
