@@ -252,7 +252,7 @@ export default function MonitoringPage() {
     ? topDomains.filter((d) => d.domain.includes(domainSearch))
     : topDomains;
 
-  const uniqueMacs = [...new Set(userDomains.map((d) => d.mac).filter(Boolean))];
+  const uniqueMacs = Array.from(new Set(userDomains.map((d) => d.mac).filter((m): m is string => Boolean(m))));
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] px-4 py-6 md:px-8">

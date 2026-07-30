@@ -115,7 +115,7 @@ function PortalContent() {
   const [suspendedMsg, setSuspendedMsg] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0812345678';
+  const promptPayNumber = process.env.NEXT_PUBLIC_PROMPTPAY_ID || '0912368969';
 
   // Fetch Packages from API
   useEffect(() => {

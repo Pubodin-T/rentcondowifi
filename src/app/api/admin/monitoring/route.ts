@@ -56,7 +56,7 @@ function parseDnsLog(output: string, arpMap: Record<string, string>): {
 }[] {
   const entries: { clientIp: string; mac: string | null; domain: string; queriedAt: Date }[] = [];
   // dnsmasq log format: "Jul 30 03:00:00 dnsmasq[1234]: query[A] example.com from 192.168.2.100"
-  const lineRegex = /(\w+\s+\d+\s+[\d:]+).*?query\[A+{0,4}\]\s+([\w.\-]+)\s+from\s+([\d.]+)/g;
+  const lineRegex = /(\w+\s+\d+\s+[\d:]+).*?query\[[A-Z0-9]+\]\s+([\w.\-]+)\s+from\s+([\d.]+)/g;
   let match;
   const now = new Date();
 
