@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   }
 
   // OpenNDS Router default gateway auth address
-  const routerIp = process.env.OPENNDS_ROUTER_IP || '192.168.1.1';
+  const routerIp = process.env.OPENNDS_ROUTER_IP || '192.168.2.1';
   const routerPort = process.env.OPENNDS_GATEWAY_PORT || '2050';
 
   // Format OpenNDS FAS redirect callback URL
