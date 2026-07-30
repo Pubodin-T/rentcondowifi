@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   ShieldAlert,
   CheckCircle,
@@ -14,6 +15,7 @@ import {
   Check,
   X,
   Lock,
+  Activity,
 } from 'lucide-react';
 
 interface SlipItem {
@@ -116,13 +118,23 @@ export default function AdminPage() {
             </h1>
           </div>
 
-          <button
-            onClick={fetchSlips}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition flex items-center space-x-2 w-fit"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>รีเฟรชข้อมูล</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/admin/monitoring"
+              className="px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-sm font-medium transition flex items-center space-x-2 shadow-lg shadow-sky-500/20"
+            >
+              <Activity className="w-4 h-4" />
+              <span>Network Monitoring</span>
+            </Link>
+
+            <button
+              onClick={fetchSlips}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-medium transition flex items-center space-x-2 w-fit"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span>รีเฟรชข้อมูล</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}

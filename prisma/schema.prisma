@@ -19,7 +19,8 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  slips PaymentSlip[]
+  slips         PaymentSlip[]
+  bandwidthLogs BandwidthLog[]
 
   @@map("users")
 }
@@ -60,4 +61,35 @@ model SystemSetting {
   value String
 
   @@map("system_settings")
+}
+
+// Per-session bandwidth tracking (pulled from OpenNDS ndsctl)
+model BandwidthLog {
+  id           String    @id @default(uuid())
+  mac          String    // client MAC address
+  userId       String?   // linked user if known
+  downloadMb   Float     @default(0)
+  uploadMb     Float     @default(0)
+  sessionStart DateTime?
+  recordedAt   DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([mac])
+  @@index([recordedAt])
+  @@map("bandwidth_logs")
+}
+
+// DNS query logs per client (from dnsmasq log-queries)
+model DnsLog {
+  id        BigInt   @id @default(autoincrement())
+  mac       String?  // client MAC (resolved from ARP)
+  clientIp  String
+  domain    String
+  queriedAt DateTime @default(now())
+
+  @@index([mac, queriedAt])
+  @@index([clientIp, queriedAt])
+  @@index([domain])
+  @@map("dns_logs")
 }
