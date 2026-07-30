@@ -280,10 +280,15 @@ function PortalContent() {
 
   // Redirect to OpenNDS Auth Gateway
   const handleUnlockInternet = () => {
-    if (authaction && tok) {
-      window.location.href = `${authaction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
+    let targetAction = authaction;
+    if (targetAction && targetAction.includes('status.client')) {
+      targetAction = targetAction.replace('status.client', '192.168.2.1');
+    }
+
+    if (targetAction && tok) {
+      window.location.href = `${targetAction}?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
     } else if (tok) {
-      window.location.href = `/api/opennds/auth?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
+      window.location.href = `http://192.168.2.1:2050/opennds_auth/?tok=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
     } else {
       window.location.href = redir;
     }

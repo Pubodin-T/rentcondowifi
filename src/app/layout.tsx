@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/react';
 
 export const metadata: Metadata = {
   title: 'RentWiFi - ระบบสมัครและเข้าใช้งานอินเทอร์เน็ต WiFi',
@@ -19,7 +20,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-['Kanit',sans-serif]">{children}</body>
+      <body className="font-['Kanit',sans-serif]">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
