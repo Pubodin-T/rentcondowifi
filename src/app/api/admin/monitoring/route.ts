@@ -199,7 +199,7 @@ export async function GET(req: Request) {
       where: { queriedAt: { gte: since24h } },
       _count: { domain: true },
       orderBy: { _count: { domain: 'desc' } },
-      take: 20,
+      take: 100,
     });
 
     // Get per-user domain usage last 24h
@@ -208,7 +208,7 @@ export async function GET(req: Request) {
       where: { queriedAt: { gte: since24h }, mac: { not: null } },
       _count: { domain: true },
       orderBy: { _count: { domain: 'desc' } },
-      take: 100,
+      take: 1000,
     });
 
     const [totalDnsLogs, totalBandwidthLogs] = await Promise.all([

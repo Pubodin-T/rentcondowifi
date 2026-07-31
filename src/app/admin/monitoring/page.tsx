@@ -270,18 +270,10 @@ export default function NetworkMonitoringPage() {
 
   // Group User App Summaries BY USER ACCOUNT -> THEN BY DEVICE
   const userGroupedSummaries = useMemo(() => {
-    const userGroups: Record<
-      string,
-      {
-        username: string;
-        devices: Array<{
-          mac: string;
-          deviceName?: string;
-          services: Array<{ info: NormalizedDomainInfo; count: number }>;
-          rawDomains: Array<{ domain: string; count: number }>;
-        }>;
-      }
-    > = {};
+    const allMacs = new Set<string>();
+    liveClients.forEach((c) => allMacs.add(c.mac.toLowerCase()));
+    monthlyStats.forEach((m) => allMacs.add(m.mac.toLowerCase()));
+    userDomains.forEach((ud) => ud.mac && allMacs.add(ud.mac.toLowerCase()));
 
     const macMap: Record<
       string,
@@ -290,6 +282,10 @@ export default function NetworkMonitoringPage() {
         rawDomains: Record<string, number>;
       }
     > = {};
+
+    allMacs.forEach((mac) => {
+      macMap[mac] = { services: {}, rawDomains: {} };
+    });
 
     for (const ud of userDomains) {
       if (!ud.mac) continue;
@@ -304,6 +300,19 @@ export default function NetworkMonitoringPage() {
 
       macMap[mac].rawDomains[ud.domain] = (macMap[mac].rawDomains[ud.domain] || 0) + ud.count;
     }
+
+    const userGroups: Record<
+      string,
+      {
+        username: string;
+        devices: Array<{
+          mac: string;
+          deviceName?: string;
+          services: Array<{ info: NormalizedDomainInfo; count: number }>;
+          rawDomains: Array<{ domain: string; count: number }>;
+        }>;
+      }
+    > = {};
 
     for (const [mac, data] of Object.entries(macMap)) {
       const userInfo = userMap[mac];
@@ -327,8 +336,8 @@ export default function NetworkMonitoringPage() {
       });
     }
 
-    return Object.values(userGroups);
-  }, [userDomains, userMap]);
+    return Object.values(userGroups).sort((a, b) => (a.username.startsWith('❓') ? 1 : b.username.startsWith('❓') ? -1 : a.username.localeCompare(b.username)));
+  }, [userDomains, liveClients, monthlyStats, userMap]);
 
   const totalMonthlyMb = monthlyStats.reduce((s, m) => s + (m._sum.downloadMb ?? 0) + (m._sum.uploadMb ?? 0), 0);
 
