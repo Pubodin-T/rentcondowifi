@@ -386,24 +386,14 @@ function PortalContent() {
     const gwAddr = gatewayAddress.includes('://') ? gatewayAddress : `http://${gatewayAddress}`;
 
     if (tok) {
-      // 1. Send auth via multiple methods to ensure at least one reaches the router
-      // Image beacon: HTTP images from HTTPS are "optionally-blockable" mixed content (usually allowed)
-      const img = new Image();
-      img.src = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`;
-
-      // Fetch with no-cors as backup
-      try {
-        fetch(`${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}`, { mode: 'no-cors' }).catch(() => {});
-      } catch (err) { /* ignore */ }
-
-      // 2. Wait for OpenNDS to process the authentication
-      // Then redirect to Apple captive detection URL to close the iOS captive sheet
-      setTimeout(() => {
-        // Apple CNA checks this URL: if it returns "Success", captive sheet closes
-        window.location.href = 'http://captive.apple.com/hotspot-detect.html';
-      }, 1500);
+      // Direct Top-Level Navigation to OpenNDS Gateway Auth URL.
+      // Top-level navigation from HTTPS (Vercel) to HTTP (Router) is permitted by mobile browsers
+      // whereas background fetch()/Image() is blocked due to Mixed Content security rules.
+      const authUrl = `${gwAddr}/opennds_auth/?hid=${encodeURIComponent(tok)}&redir=${encodeURIComponent(redir)}`;
+      window.location.href = authUrl;
     } else {
-      window.location.href = 'https://www.google.com';
+      // Fallback if accessed directly without FAS parameters
+      window.location.href = redir || 'https://www.google.com';
     }
   };
 
