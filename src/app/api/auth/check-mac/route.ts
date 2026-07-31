@@ -1,11 +1,24 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { detectDeviceName } from '@/lib/deviceDetector';
 
 export async function POST(req: Request) {
   try {
-    const { clientmac } = await req.json();
+    const { clientmac, userAgent: bodyUa } = await req.json();
     if (!clientmac) {
       return NextResponse.json({ success: false });
+    }
+
+    // Auto-save REAL device name from HTTP User-Agent header
+    const reqUa = bodyUa || req.headers.get('user-agent') || '';
+    if (reqUa) {
+      const deviceKey = `device_${clientmac.toLowerCase()}`;
+      const deviceName = detectDeviceName(reqUa);
+      await prisma.systemSetting.upsert({
+        where: { key: deviceKey },
+        update: { value: deviceName },
+        create: { key: deviceKey, value: deviceName },
+      });
     }
 
     const macKey = `mac_${clientmac.toLowerCase()}`;

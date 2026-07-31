@@ -14,12 +14,12 @@ import {
   ArrowLeft,
   Database,
   TrendingUp,
-  PieChart,
-  ShieldCheck,
-  Layers,
   Smartphone,
   CheckCircle2,
   Sparkles,
+  User,
+  ListFilter,
+  Eye,
 } from 'lucide-react';
 import Link from 'next/link';
 import { normalizeDomain, NormalizedDomainInfo } from '@/lib/domainNormalizer';
@@ -66,9 +66,11 @@ function formatKB(kb: number) {
 function LiveClientRow({
   client,
   userMap,
+  monthlyStatMb,
 }: {
   client: LiveClient;
   userMap: Record<string, { username: string; phone?: string | null; deviceName?: string }>;
+  monthlyStatMb?: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const totalMb = (client.downloadKb + client.uploadKb) / 1024;
@@ -168,6 +170,13 @@ function LiveClientRow({
             </div>
           </div>
 
+          {typeof monthlyStatMb === 'number' && (
+            <div className="flex items-center justify-between text-sky-400 bg-sky-500/10 border border-sky-500/20 p-2.5 rounded-xl font-medium">
+              <span className="text-slate-400">📊 ยอดใช้งานสะสมรวมทั้งเดือนนี้:</span>
+              <span className="font-bold text-sky-300 font-mono">{formatBytes(monthlyStatMb)}</span>
+            </div>
+          )}
+
           {client.sessionStart && (
             <div className="flex items-center space-x-1.5 text-slate-400 pt-1 border-t border-slate-800/80">
               <Clock className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
@@ -192,6 +201,7 @@ export default function NetworkMonitoringPage() {
   const [loading, setLoading] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [showRawDomains, setShowRawDomains] = useState(false);
 
   const fetchStats = useCallback(async () => {
     setLoading(true);
@@ -231,7 +241,7 @@ export default function NetworkMonitoringPage() {
     return () => clearInterval(interval);
   }, [fetchStats]);
 
-  // Aggregate Raw Subdomains into Normalized Services (ลดความซ้ำซ้อน 100%)
+  // Aggregate Raw Subdomains into Normalized Services
   const normalizedCategoryStats = useMemo(() => {
     const categories: Record<string, { name: string; count: number; icon: string; badgeClass: string; accentColor: string }> = {};
 
@@ -258,30 +268,67 @@ export default function NetworkMonitoringPage() {
     }));
   }, [topDomains]);
 
-  // Per-Device Normalized App Summary
-  const userAppSummaries = useMemo(() => {
-    const macMap: Record<string, Record<string, { info: NormalizedDomainInfo; count: number }>> = {};
+  // Group User App Summaries BY USER ACCOUNT -> THEN BY DEVICE
+  const userGroupedSummaries = useMemo(() => {
+    const userGroups: Record<
+      string,
+      {
+        username: string;
+        devices: Array<{
+          mac: string;
+          deviceName?: string;
+          services: Array<{ info: NormalizedDomainInfo; count: number }>;
+          rawDomains: Array<{ domain: string; count: number }>;
+        }>;
+      }
+    > = {};
+
+    const macMap: Record<
+      string,
+      {
+        services: Record<string, { info: NormalizedDomainInfo; count: number }>;
+        rawDomains: Record<string, number>;
+      }
+    > = {};
 
     for (const ud of userDomains) {
       if (!ud.mac) continue;
       const mac = ud.mac.toLowerCase();
-      if (!macMap[mac]) macMap[mac] = {};
+      if (!macMap[mac]) macMap[mac] = { services: {}, rawDomains: {} };
 
       const info = normalizeDomain(ud.domain);
-      if (!macMap[mac][info.serviceName]) {
-        macMap[mac][info.serviceName] = { info, count: 0 };
+      if (!macMap[mac].services[info.serviceName]) {
+        macMap[mac].services[info.serviceName] = { info, count: 0 };
       }
-      macMap[mac][info.serviceName].count += ud.count;
+      macMap[mac].services[info.serviceName].count += ud.count;
+
+      macMap[mac].rawDomains[ud.domain] = (macMap[mac].rawDomains[ud.domain] || 0) + ud.count;
     }
 
-    return Object.entries(macMap).map(([mac, services]) => {
-      const serviceList = Object.values(services).sort((a, b) => b.count - a.count);
-      return {
+    for (const [mac, data] of Object.entries(macMap)) {
+      const userInfo = userMap[mac];
+      const username = userInfo?.username || '❓ ผู้ใช้งานทั่วไป (Unlinked Device)';
+      const deviceName = userInfo?.deviceName;
+
+      if (!userGroups[username]) {
+        userGroups[username] = { username, devices: [] };
+      }
+
+      const serviceList = Object.values(data.services).sort((a, b) => b.count - a.count);
+      const rawDomainList = Object.entries(data.rawDomains)
+        .map(([domain, count]) => ({ domain, count }))
+        .sort((a, b) => b.count - a.count);
+
+      userGroups[username].devices.push({
         mac,
+        deviceName,
         services: serviceList,
-      };
-    });
-  }, [userDomains]);
+        rawDomains: rawDomainList,
+      });
+    }
+
+    return Object.values(userGroups);
+  }, [userDomains, userMap]);
 
   const totalMonthlyMb = monthlyStats.reduce((s, m) => s + (m._sum.downloadMb ?? 0) + (m._sum.uploadMb ?? 0), 0);
 
@@ -381,10 +428,13 @@ export default function NetworkMonitoringPage() {
         {/* Live Clients */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white flex items-center space-x-2">
-              <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_8px_#34d399] animate-pulse" />
-              <span>อุปกรณ์ที่กำลังต่อใช้งานอยู่ (Live Session)</span>
-            </h2>
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center space-x-2">
+                <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full shadow-[0_0_8px_#34d399] animate-pulse" />
+                <span>อุปกรณ์ที่กำลังต่อใช้งานอยู่ (Live Session)</span>
+              </h2>
+              <p className="text-[11px] text-slate-400 mt-0.5">ปริมาณเน็ตเฉพาะในรอบการเชื่อมต่อปัจจุบันจาก Router</p>
+            </div>
             <button
               onClick={takeSnapshot}
               disabled={snapshotLoading}
@@ -401,19 +451,24 @@ export default function NetworkMonitoringPage() {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {liveClients.map((c) => (
-                <LiveClientRow key={c.mac} client={c} userMap={userMap} />
-              ))}
+              {liveClients.map((c) => {
+                const stat = monthlyStats.find((m) => m.mac.toLowerCase() === c.mac.toLowerCase());
+                const monthlyMb = stat ? (stat._sum.downloadMb ?? 0) + (stat._sum.uploadMb ?? 0) : undefined;
+                return <LiveClientRow key={c.mac} client={c} userMap={userMap} monthlyStatMb={monthlyMb} />;
+              })}
             </div>
           )}
         </div>
 
         {/* Monthly Bandwidth per Device */}
         <div className="space-y-4">
-          <h2 className="text-base font-bold text-white flex items-center space-x-2">
-            <TrendingUp className="w-4 h-4 text-sky-400" />
-            <span>ปริมาณเน็ตสะสมเดือนนี้ (ต่ออุปกรณ์)</span>
-          </h2>
+          <div>
+            <h2 className="text-base font-bold text-white flex items-center space-x-2">
+              <TrendingUp className="w-4 h-4 text-sky-400" />
+              <span>ปริมาณเน็ตสะสมประจำเดือนนี้ (Monthly Total)</span>
+            </h2>
+            <p className="text-[11px] text-slate-400 mt-0.5">รวมประวัติการใช้งานทุก Session ในเดือนนี้ (เรียงจากผู้ใช้เน็ตสูงสุด)</p>
+          </div>
 
           {monthlyStats.length === 0 ? (
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-sm">
@@ -430,6 +485,7 @@ export default function NetworkMonitoringPage() {
                   const max = monthlyStats.reduce((m, e) => Math.max(m, (e._sum.downloadMb ?? 0) + (e._sum.uploadMb ?? 0)), 1);
                   const pct = Math.min(100, (total / max) * 100);
                   const userInfo = userMap[entry.mac.toLowerCase()];
+                  const isOnlineNow = liveClients.some((lc) => lc.mac.toLowerCase() === entry.mac.toLowerCase() && lc.state === 'Authenticated');
 
                   return (
                     <div key={entry.mac} className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-2 hover:border-slate-700 transition">
@@ -444,6 +500,16 @@ export default function NetworkMonitoringPage() {
                           {userInfo?.deviceName && (
                             <span className="text-xs text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                               {userInfo.deviceName}
+                            </span>
+                          )}
+                          {isOnlineNow ? (
+                            <span className="text-[10px] font-sans text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center space-x-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                              <span>ออนไลน์อยู่</span>
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-sans text-slate-500 font-medium bg-slate-800/80 px-1.5 py-0.5 rounded border border-slate-700">
+                              ⚪ ประวัติสะสม
                             </span>
                           )}
                         </div>
@@ -469,16 +535,16 @@ export default function NetworkMonitoringPage() {
         </div>
       </div>
 
-      {/* Futuristic Categorized App Traffic & Service Breakdown (ลดความซ้ำซ้อน 100%) */}
+      {/* Futuristic Categorized App Traffic & Service Breakdown */}
       <div className="space-y-6">
         <div className="border-t border-slate-800 pt-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white flex items-center space-x-2 tracking-tight">
               <Sparkles className="w-5 h-5 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-              <span>สถิติการใช้งานบริการ & แอพพลิเคชัน (Smart Category Breakdown)</span>
+              <span>ภาพรวมบริการ & แอพพลิเคชัน (Overall App Traffic Category)</span>
             </h2>
             <span className="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
-              วิเคราะห์จำแนกบริการอัตโนมัติ
+              วิเคราะห์ภาพรวมการใช้งาน
             </span>
           </div>
 
@@ -515,50 +581,118 @@ export default function NetworkMonitoringPage() {
             </div>
           )}
 
-          {/* Per-Device Smart Application Log Summary */}
-          {userAppSummaries.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-slate-300 flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-sky-400" />
-                <span>จำแนกแอพพลิเคชันที่เข้าใช้งานต่อผู้ใช้งาน (Clean Activity Stream)</span>
-              </h3>
+          {/* Grouped Activity Stream: BY USER ACCOUNT -> THEN BY DEVICE */}
+          {userGroupedSummaries.length > 0 && (
+            <div className="space-y-6 pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/90 p-4 rounded-2xl border border-slate-800">
+                <div className="flex items-center space-x-2.5">
+                  <User className="w-5 h-5 text-sky-400" />
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    กิจกรรมการเข้าใช้งาน (แยกตามผู้ใช้งาน 👤 ➔ แล้วซ้อนแยกตามเครื่อง 📱)
+                  </h3>
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {userAppSummaries.map(({ mac, services }) => {
-                  const userInfo = userMap[mac.toLowerCase()];
-                  return (
-                    <div key={mac} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-lg">
-                      <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                        <div className="flex items-center space-x-2 flex-wrap">
-                          <span className="font-mono text-xs text-white font-bold">{mac}</span>
-                          {userInfo?.username && (
-                            <span className="text-xs font-sans text-sky-300 font-medium bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
-                              👤 {userInfo.username}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setShowRawDomains(false)}
+                    className={`text-xs px-3 py-1.5 rounded-xl font-medium transition flex items-center space-x-1.5 ${
+                      !showRawDomains
+                        ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <ListFilter className="w-3.5 h-3.5" />
+                    <span>สรุปแอพพลิเคชัน (Smart View)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowRawDomains(true)}
+                    className={`text-xs px-3 py-1.5 rounded-xl font-medium transition flex items-center space-x-1.5 ${
+                      showRawDomains
+                        ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>ดูชื่อเว็บไซต์ดิบทุกโดเมน (Full Domain Log)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* User Account Cards */}
+              <div className="space-y-6">
+                {userGroupedSummaries.map((userGroup) => (
+                  <div
+                    key={userGroup.username}
+                    className="bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-3xl p-5 space-y-4 shadow-2xl"
+                  >
+                    {/* User Account Header */}
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 font-bold">
+                          👤
+                        </div>
+                        <div>
+                          <h4 className="text-base font-bold text-white flex items-center space-x-2">
+                            <span>{userGroup.username}</span>
+                            <span className="text-xs text-sky-400 font-normal bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+                              {userGroup.devices.length} อุปกรณ์
                             </span>
-                          )}
-                          {userInfo?.deviceName && (
-                            <span className="text-xs font-sans text-emerald-300 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                              {userInfo.deviceName}
-                            </span>
-                          )}
+                          </h4>
+                          <p className="text-xs text-slate-400">ประวัติกิจกรรมการใช้งานเว็บไซต์และแอพพลิเคชัน</p>
                         </div>
                       </div>
-
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        {services.map(({ info, count }) => (
-                          <div
-                            key={info.serviceName}
-                            className={`flex items-center space-x-1.5 text-xs px-2.5 py-1 rounded-lg border font-medium ${info.badgeClass}`}
-                          >
-                            <span>{info.icon}</span>
-                            <span>{info.serviceName}</span>
-                            <span className="text-slate-400 text-[10px] font-mono font-normal">({count})</span>
-                          </div>
-                        ))}
-                      </div>
                     </div>
-                  );
-                })}
+
+                    {/* Devices under this User */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {userGroup.devices.map((dev) => (
+                        <div key={dev.mac} className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-md">
+                          {/* Device Header */}
+                          <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                            <div className="flex items-center space-x-2 flex-wrap">
+                              <span className="font-mono text-xs font-bold text-slate-300">{dev.mac}</span>
+                              {dev.deviceName && (
+                                <span className="text-xs font-sans text-emerald-300 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                                  {dev.deviceName}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mode 1: Smart View (Clean Categorized Badges) */}
+                          {!showRawDomains ? (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {dev.services.map(({ info, count }) => (
+                                <div
+                                  key={info.serviceName}
+                                  className={`flex items-center space-x-1.5 text-xs px-2.5 py-1 rounded-xl border font-medium shadow-sm ${info.badgeClass}`}
+                                >
+                                  <span>{info.icon}</span>
+                                  <span>{info.serviceName}</span>
+                                  <span className="text-slate-400 text-[10px] font-mono font-normal">({count} ครั้ง)</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            /* Mode 2: Full Domain Log View (Every Single Website Domain) */
+                            <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto pr-1 text-xs">
+                              {dev.rawDomains.map(({ domain, count }) => (
+                                <div
+                                  key={domain}
+                                  className="flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-slate-300 hover:text-white hover:border-slate-700 transition"
+                                >
+                                  <span className="truncate max-w-[220px]">{domain}</span>
+                                  <span className="text-sky-400 font-bold ml-2">{count}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
