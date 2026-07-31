@@ -45,6 +45,16 @@ export async function POST(req: Request) {
       );
     }
 
+    // Save MAC binding if clientmac is provided
+    if (body.clientmac) {
+      const macKey = `mac_${body.clientmac.toLowerCase()}`;
+      await prisma.systemSetting.upsert({
+        where: { key: macKey },
+        update: { value: user.id },
+        create: { key: macKey, value: user.id },
+      });
+    }
+
     // Check expiration
     const now = new Date();
     const isExpired = user.expireAt ? user.expireAt < now : true;

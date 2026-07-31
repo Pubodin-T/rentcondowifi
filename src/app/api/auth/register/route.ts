@@ -68,6 +68,16 @@ export async function POST(req: Request) {
       },
     });
 
+    // Save MAC binding if clientmac is provided
+    if (body.clientmac) {
+      const macKey = `mac_${body.clientmac.toLowerCase()}`;
+      await prisma.systemSetting.upsert({
+        where: { key: macKey },
+        update: { value: newUser.id },
+        create: { key: macKey, value: newUser.id },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'สมัครใช้งานและแจ้งชำระเงินสำเร็จ!',

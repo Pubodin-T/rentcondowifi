@@ -149,6 +149,24 @@ function PortalContent() {
       .catch(() => {});
   }, []);
 
+  // Automatic MAC Authentication Check (Auto-Login if device was previously authenticated and package is active)
+  useEffect(() => {
+    if (clientmac) {
+      fetch('/api/auth/check-mac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientmac }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.user) {
+            setSuccessData(data.user);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [clientmac]);
+
   // Generate PromptPay QR Code when selectedPackage changes
   useEffect(() => {
     if (selectedPackage) {
