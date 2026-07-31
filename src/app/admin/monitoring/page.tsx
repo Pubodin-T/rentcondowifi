@@ -158,6 +158,7 @@ export default function MonitoringPage() {
   const [userMap, setUserMap] = useState<Record<string, { username: string; phone?: string | null }>>({});
   const [totalDnsLogs, setTotalDnsLogs] = useState(0);
   const [totalBwLogs, setTotalBwLogs] = useState(0);
+  const [routerConnected, setRouterConnected] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
@@ -179,6 +180,7 @@ export default function MonitoringPage() {
         setUserMap(data.userMap ?? {});
         setTotalDnsLogs(data.totalDnsLogs ?? 0);
         setTotalBwLogs(data.totalBandwidthLogs ?? 0);
+        setRouterConnected(!!data.routerConnected);
         setLastUpdated(new Date());
       }
     } catch (err) {
@@ -239,7 +241,16 @@ export default function MonitoringPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
+          <div className={`px-3 py-1 rounded-full text-xs flex items-center space-x-1.5 border ${
+            routerConnected
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${routerConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span>{routerConnected ? 'Router SSH: เชื่อมต่อแล้ว' : 'Router SSH: ออฟไลน์'}</span>
+          </div>
+
           <button
             onClick={fetchStats}
             disabled={loading}

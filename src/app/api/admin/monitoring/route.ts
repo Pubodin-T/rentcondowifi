@@ -20,7 +20,7 @@ function parseNdsctlStatus(output: string) {
     token: string;
   }[] = [];
 
-  const clientBlocks = output.split(/\nClient \d+\n/).slice(1);
+  const clientBlocks = output.split(/\nClient \d+/).slice(1);
   for (const block of clientBlocks) {
     const ip = block.match(/IP:\s+([\d.]+)/)?.[1] ?? '';
     const mac = block.match(/MAC:\s+([0-9a-f:]+)/i)?.[1] ?? '';
@@ -55,18 +55,15 @@ function parseDnsLog(output: string, arpMap: Record<string, string>): {
   queriedAt: Date;
 }[] {
   const entries: { clientIp: string; mac: string | null; domain: string; queriedAt: Date }[] = [];
-  // dnsmasq log format: "Jul 30 03:00:00 dnsmasq[1234]: query[A] example.com from 192.168.2.100"
   const lineRegex = /(\w+\s+\d+\s+[\d:]+).*?query\[[A-Z0-9]+\]\s+([\w.\-]+)\s+from\s+([\d.]+)/g;
   let match;
   const now = new Date();
 
   while ((match = lineRegex.exec(output)) !== null) {
     const [, dateStr, domain, clientIp] = match;
-    // Skip router's own queries and internal domains
     if (clientIp === ROUTER_HOST || domain.endsWith('.local') || domain.endsWith('.lan')) continue;
     const mac = arpMap[clientIp] ?? null;
 
-    // Parse date (assume current year)
     let queriedAt: Date;
     try {
       queriedAt = new Date(`${dateStr} ${now.getFullYear()}`);
@@ -85,28 +82,28 @@ export async function GET(req: Request) {
   const action = searchParams.get('action') || 'stats'; // 'stats' | 'dns' | 'snapshot'
 
   const ssh = new NodeSSH();
+  let liveClients: any[] = [];
+  let arpMap: Record<string, string> = {};
+  let routerConnected = false;
+  let sshErrorMsg = '';
 
   try {
     await ssh.connect({
       host: ROUTER_HOST,
       username: ROUTER_USER,
       password: ROUTER_PASS,
-      readyTimeout: 10000,
+      readyTimeout: 5000,
     });
+    routerConnected = true;
 
     if (action === 'snapshot') {
-      // Pull ndsctl status and save bandwidth snapshot to DB
       const ndsResult = await ssh.execCommand('ndsctl status');
       const clients = parseNdsctlStatus(ndsResult.stdout);
-
-      // Map MAC to user
-      const allUsers = await prisma.user.findMany({ select: { id: true, username: true } });
 
       const savedLogs = [];
       for (const client of clients) {
         if (client.state !== 'Authenticated') continue;
 
-        // Try to find user by looking at mac stored in system_settings
         const macSetting = await prisma.systemSetting.findUnique({
           where: { key: `mac_${client.mac.toLowerCase()}` },
         });
@@ -129,15 +126,12 @@ export async function GET(req: Request) {
     }
 
     if (action === 'dns') {
-      // Pull and parse dnsmasq log
       const arpResult = await ssh.execCommand('cat /proc/net/arp');
-      const arpMap = parseArpTable(arpResult.stdout);
+      arpMap = parseArpTable(arpResult.stdout);
 
-      // Read last 2000 lines of dnsmasq log
       const logResult = await ssh.execCommand('tail -n 2000 /tmp/dnsmasq.log 2>/dev/null || echo ""');
       const entries = parseDnsLog(logResult.stdout, arpMap);
 
-      // Save new entries to DB (only last 500 to avoid overloading)
       if (entries.length > 0) {
         await prisma.dnsLog.createMany({
           data: entries.slice(0, 500).map((e) => ({
@@ -154,13 +148,18 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, parsed: entries.length });
     }
 
-    // Default: return live stats from router + DB summary
+    // Default: fetch live stats from router
     const ndsResult = await ssh.execCommand('ndsctl status');
     const arpResult = await ssh.execCommand('cat /proc/net/arp');
-    const arpMap = parseArpTable(arpResult.stdout);
-    const liveClients = parseNdsctlStatus(ndsResult.stdout);
+    arpMap = parseArpTable(arpResult.stdout);
+    liveClients = parseNdsctlStatus(ndsResult.stdout);
     ssh.dispose();
+  } catch (err: any) {
+    sshErrorMsg = err.message || 'Unable to connect SSH to Router';
+    ssh.dispose?.();
+  }
 
+  try {
     // Get bandwidth summary per MAC this month
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -217,6 +216,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
+      routerConnected,
+      sshErrorMsg,
       liveClients: liveClients.map((c) => ({
         ...c,
         mac: c.mac.toLowerCase(),
@@ -235,8 +236,7 @@ export async function GET(req: Request) {
       totalBandwidthLogs,
     });
   } catch (err: any) {
-    ssh.dispose?.();
-    console.error('Monitoring API error:', err);
+    console.error('Monitoring API DB error:', err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
