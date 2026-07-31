@@ -56,71 +56,104 @@ function formatKB(kb: number) {
   return `${(kb / 1024 / 1024).toFixed(2)} GB`;
 }
 
-function LiveClientCard({
+function LiveClientRow({
   client,
   userMap,
 }: {
   client: LiveClient;
   userMap: Record<string, { username: string; phone?: string | null }>;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const totalMb = (client.downloadKb + client.uploadKb) / 1024;
   const barWidth = Math.min(100, (totalMb / 500) * 100);
   const userInfo = userMap[client.mac.toLowerCase()];
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 space-y-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${client.state === 'Authenticated' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span className="text-white font-mono text-sm">{client.mac}</span>
+    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden transition-all">
+      {/* Compact Main Row (1 บรรทัด) */}
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-slate-700/40 transition select-none"
+      >
+        <div className="flex items-center space-x-3 min-w-0">
+          <div
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+              client.state === 'Authenticated' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+            }`}
+          />
+          <div className="flex items-center space-x-2 flex-wrap">
+            <span className="text-white font-mono text-sm font-semibold">{client.mac}</span>
+            <span className="text-slate-400 text-xs font-mono">({client.clientIp})</span>
             {userInfo && (
-              <span className="text-xs font-sans text-sky-400 font-semibold bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
+              <span className="text-xs font-sans text-sky-400 font-medium bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
                 👤 {userInfo.username}
               </span>
             )}
           </div>
-          <div className="text-slate-400 text-xs mt-1">{client.clientIp}</div>
         </div>
-        <span className={`text-xs px-2 py-1 rounded-lg font-medium ${client.state === 'Authenticated' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-          {client.state === 'Authenticated' ? 'ออนไลน์' : 'รอยืนยัน'}
-        </span>
-      </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex items-center space-x-2">
-          <Download className="w-3.5 h-3.5 text-sky-400" />
-          <div>
-            <div className="text-xs text-slate-500">ดาวน์โหลด</div>
-            <div className="text-sm text-sky-400 font-semibold">{formatKB(client.downloadKb)}</div>
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          <div className="text-right hidden sm:block">
+            <div className="text-xs text-sky-400 font-semibold">
+              ⬇ {formatKB(client.downloadKb)} <span className="text-slate-600 font-normal">|</span> ⬆ {formatKB(client.uploadKb)}
+            </div>
           </div>
+
+          <span
+            className={`text-xs px-2.5 py-1 rounded-lg font-medium ${
+              client.state === 'Authenticated'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+            }`}
+          >
+            {client.state === 'Authenticated' ? 'ออนไลน์' : 'รอยืนยัน'}
+          </span>
+
+          <button className="text-slate-400 hover:text-white p-1 rounded-lg transition">
+            {isOpen ? <ChevronUp className="w-4 h-4 text-sky-400" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
         </div>
-        <div className="flex items-center space-x-2">
-          <Upload className="w-3.5 h-3.5 text-violet-400" />
-          <div>
-            <div className="text-xs text-slate-500">อัปโหลด</div>
-            <div className="text-sm text-violet-400 font-semibold">{formatKB(client.uploadKb)}</div>
+      </div>
+
+      {/* Expanded Dropdown Details */}
+      {isOpen && (
+        <div className="px-4 pb-4 pt-3 border-t border-slate-700/40 bg-slate-900/50 space-y-3 animate-fade-in text-xs">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center space-x-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">
+              <Download className="w-4 h-4 text-sky-400 flex-shrink-0" />
+              <div>
+                <div className="text-slate-400">ดาวน์โหลด session นี้</div>
+                <div className="text-sm text-sky-400 font-bold">{formatKB(client.downloadKb)}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">
+              <Upload className="w-4 h-4 text-violet-400 flex-shrink-0" />
+              <div>
+                <div className="text-slate-400">อัปโหลด session นี้</div>
+                <div className="text-sm text-violet-400 font-bold">{formatKB(client.uploadKb)}</div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="space-y-1">
-        <div className="flex justify-between text-xs text-slate-500">
-          <span>ใช้งานรวม session นี้</span>
-          <span className="text-white">{formatKB(client.downloadKb + client.uploadKb)}</span>
-        </div>
-        <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-sky-500 to-violet-500 rounded-full transition-all"
-            style={{ width: `${barWidth}%` }}
-          />
-        </div>
-      </div>
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between text-slate-400">
+              <span>ใช้งานรวม session นี้:</span>
+              <span className="text-white font-bold">{formatKB(client.downloadKb + client.uploadKb)}</span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-sky-500 to-violet-500 rounded-full transition-all"
+                style={{ width: `${barWidth}%` }}
+              />
+            </div>
+          </div>
 
-      {client.sessionStart && (
-        <div className="flex items-center space-x-1.5 text-xs text-slate-500">
-          <Clock className="w-3 h-3" />
-          <span>เริ่ม {new Date(client.sessionStart).toLocaleString('th-TH')}</span>
+          {client.sessionStart && (
+            <div className="flex items-center space-x-1.5 text-slate-400 pt-1 border-t border-slate-800/60">
+              <Clock className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
+              <span>เริ่มเข้าใช้งานเมื่อ: {new Date(client.sessionStart).toLocaleString('th-TH')}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -310,9 +343,9 @@ export default function MonitoringPage() {
               ไม่มีอุปกรณ์เชื่อมต่ออยู่
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {liveClients.map((c) => (
-                <LiveClientCard key={c.mac} client={c} userMap={userMap} />
+                <LiveClientRow key={c.mac} client={c} userMap={userMap} />
               ))}
             </div>
           )}
