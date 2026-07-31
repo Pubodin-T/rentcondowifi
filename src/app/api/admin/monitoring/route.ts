@@ -243,13 +243,13 @@ export async function GET(req: Request) {
         };
       }
     }
-    for (const [mac, dev] of deviceMap.entries()) {
+    deviceMap.forEach((dev, mac) => {
       if (!macToUserMap[mac]) {
         macToUserMap[mac] = { username: '', deviceName: dev };
       } else {
         macToUserMap[mac].deviceName = dev;
       }
-    }
+    });
 
     return NextResponse.json({
       success: true,
