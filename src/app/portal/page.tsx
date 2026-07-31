@@ -24,6 +24,7 @@ import {
   EyeOff,
   KeyRound,
   MessageCircle,
+  HelpCircle,
 } from 'lucide-react';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import QRCode from 'qrcode';
@@ -1110,6 +1111,57 @@ function PortalContent() {
             </div>
           </div>
         )}
+
+        {/* Step-by-Step Instructions Guide (ขั้นตอนการเปิดใช้งานอินเทอร์เน็ต) */}
+        <div className="mt-8 bg-slate-900/80 backdrop-blur-md border border-slate-800 rounded-2xl p-5 text-left space-y-4 shadow-xl">
+          <div className="flex items-center space-x-2 border-b border-slate-800 pb-3">
+            <HelpCircle className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-sm font-bold text-white tracking-tight">
+              วิธีเปิดใช้งานอินเทอร์เน็ต (3 ขั้นตอนง่ายๆ)
+            </h3>
+          </div>
+
+          <div className="space-y-4 text-xs text-slate-300">
+            {/* Step 1 */}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 shadow-md shadow-emerald-500/10">
+                1
+              </div>
+              <div>
+                <p className="font-bold text-white text-xs">สำหรับผู้ใช้ใหม่ ➔ กดสลับไปที่แท็บ "สมัครสมาชิก (Register)"</p>
+                <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
+                  กดเลือกแท็บ <strong className="text-emerald-300 font-semibold">"สมัครสมาชิก"</strong> ด้านบน จากนั้นเลือกแพ็กเกจ WiFi ที่ต้องการ สแกน QR Code ชำระเงิน และแนบสลิป
+                </p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 rounded-full bg-sky-500/20 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 shadow-md shadow-sky-500/10">
+                2
+              </div>
+              <div>
+                <p className="font-bold text-white text-xs">กรอกข้อมูลตั้งรหัสผ่าน & ยืนยันการเชื่อมต่อเน็ต</p>
+                <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
+                  กรอกชื่อผู้ใช้ (Username), รหัสผ่าน (Password) และเบอร์โทรศัพท์ แล้วกดปุ่ม <strong className="text-sky-300 font-semibold">"ยืนยันสมัคร & เชื่อมต่อเน็ต"</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex items-start space-x-3">
+              <div className="w-6 h-6 rounded-full bg-violet-500/20 border border-violet-500/30 text-violet-400 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5 shadow-md shadow-violet-500/10">
+                3
+              </div>
+              <div>
+                <p className="font-bold text-white text-xs">สำหรับลูกค้าเดิมที่มีบัญชีอยู่แล้ว ➔ กดสลับไปที่แท็บ "เข้าสู่ระบบ (Login)"</p>
+                <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
+                  เพียงสลับไปที่แท็บ <strong className="text-violet-300 font-semibold">"เข้าสู่ระบบ (Login)"</strong> ด้านบน กรอก Username และ Password เดิมเพื่อปลดล็อกเล่นเน็ตได้ทันที!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="mt-6 pt-4 border-t border-slate-800/80 text-center space-y-3">
           <div className="flex items-center justify-center space-x-1.5 text-xs text-slate-400">
