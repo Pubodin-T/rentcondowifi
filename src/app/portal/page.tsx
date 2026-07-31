@@ -69,7 +69,7 @@ function PortalContent() {
 
   // Fallback to legacy query params if fas is not present
   const tok = fasHid || searchParams.get('tok') || searchParams.get('token') || '';
-  const redir = fasOriginUrl || searchParams.get('redir') || searchParams.get('target') || 'https://www.google.com';
+  const redir = fasOriginUrl || searchParams.get('redir') || searchParams.get('target') || 'http://captive.apple.com/hotspot-detect.html';
   const clientmac = fasClientMac || searchParams.get('clientmac') || searchParams.get('mac') || '';
   const clientip = fasClientIp || searchParams.get('clientip') || searchParams.get('ip') || '';
   const authaction = searchParams.get('authaction') || '';
