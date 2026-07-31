@@ -61,7 +61,7 @@ function LiveClientRow({
   userMap,
 }: {
   client: LiveClient;
-  userMap: Record<string, { username: string; phone?: string | null }>;
+  userMap: Record<string, { username: string; phone?: string | null; deviceName?: string }>;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const totalMb = (client.downloadKb + client.uploadKb) / 1024;
@@ -84,9 +84,14 @@ function LiveClientRow({
           <div className="flex items-center space-x-2 flex-wrap">
             <span className="text-white font-mono text-sm font-semibold">{client.mac}</span>
             <span className="text-slate-400 text-xs font-mono">({client.clientIp})</span>
-            {userInfo && (
+            {userInfo?.username && (
               <span className="text-xs font-sans text-sky-400 font-medium bg-sky-500/10 px-2 py-0.5 rounded-md border border-sky-500/20">
                 👤 {userInfo.username}
+              </span>
+            )}
+            {userInfo?.deviceName && (
+              <span className="text-xs font-sans text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                {userInfo.deviceName}
               </span>
             )}
           </div>
@@ -118,6 +123,13 @@ function LiveClientRow({
       {/* Expanded Dropdown Details */}
       {isOpen && (
         <div className="px-4 pb-4 pt-3 border-t border-slate-700/40 bg-slate-900/50 space-y-3 animate-fade-in text-xs">
+          {userInfo?.deviceName && (
+            <div className="flex items-center space-x-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl font-medium">
+              <span className="text-slate-400">รุ่น/ประเภทอุปกรณ์:</span>
+              <span className="font-bold text-emerald-300">{userInfo.deviceName}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center space-x-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/50">
               <Download className="w-4 h-4 text-sky-400 flex-shrink-0" />

@@ -297,6 +297,7 @@ function PortalContent() {
           slipUrl: slipPreview,
           clientmac,
           clientip,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         }),
       });
 
@@ -333,6 +334,7 @@ function PortalContent() {
           username: loginUsername,
           password: loginPassword,
           clientmac,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         }),
       });
 

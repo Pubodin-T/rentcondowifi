@@ -216,22 +216,38 @@ export async function GET(req: Request) {
       prisma.bandwidthLog.count(),
     ]);
 
-    // Map MAC addresses to Usernames
-    const macSettings = await prisma.systemSetting.findMany({
-      where: { key: { startsWith: 'mac_' } },
-    });
+    // Map MAC addresses to Usernames & Devices
+    const [macSettings, deviceSettings] = await Promise.all([
+      prisma.systemSetting.findMany({ where: { key: { startsWith: 'mac_' } } }),
+      prisma.systemSetting.findMany({ where: { key: { startsWith: 'device_' } } }),
+    ]);
+
     const userIds = macSettings.map((s) => s.value).filter(Boolean);
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, username: true, phone: true },
     });
     const userByIdMap = new Map(users.map((u) => [u.id, u]));
-    const macToUserMap: Record<string, { username: string; phone?: string | null }> = {};
+    const deviceMap = new Map(deviceSettings.map((s) => [s.key.replace('device_', '').toLowerCase(), s.value]));
+
+    const macToUserMap: Record<string, { username: string; phone?: string | null; deviceName?: string }> = {};
     for (const s of macSettings) {
       const mac = s.key.replace('mac_', '').toLowerCase();
       const u = userByIdMap.get(s.value);
-      if (u) {
-        macToUserMap[mac] = { username: u.username, phone: u.phone };
+      const dev = deviceMap.get(mac);
+      if (u || dev) {
+        macToUserMap[mac] = {
+          username: u ? u.username : '',
+          phone: u ? u.phone : null,
+          deviceName: dev || undefined,
+        };
+      }
+    }
+    for (const [mac, dev] of deviceMap.entries()) {
+      if (!macToUserMap[mac]) {
+        macToUserMap[mac] = { username: '', deviceName: dev };
+      } else {
+        macToUserMap[mac].deviceName = dev;
       }
     }
 

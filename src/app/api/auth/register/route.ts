@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { detectDeviceName } from '@/lib/deviceDetector';
 
 export async function POST(req: Request) {
   try {
@@ -76,6 +77,16 @@ export async function POST(req: Request) {
         update: { value: newUser.id },
         create: { key: macKey, value: newUser.id },
       });
+
+      if (body.userAgent) {
+        const deviceKey = `device_${body.clientmac.toLowerCase()}`;
+        const deviceName = detectDeviceName(body.userAgent);
+        await prisma.systemSetting.upsert({
+          where: { key: deviceKey },
+          update: { value: deviceName },
+          create: { key: deviceKey, value: deviceName },
+        });
+      }
     }
 
     return NextResponse.json({
