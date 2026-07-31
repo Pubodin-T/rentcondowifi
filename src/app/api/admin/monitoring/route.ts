@@ -157,6 +157,27 @@ export async function GET(req: Request) {
   } catch (err: any) {
     sshErrorMsg = err.message || 'Unable to connect SSH to Router';
     ssh.dispose?.();
+
+    // Fallback: Check if Router pushed live telemetry to DB via /api/admin/monitoring/push
+    try {
+      const liveSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'live_router_status' },
+      });
+      if (liveSetting && liveSetting.value) {
+        const liveData = JSON.parse(liveSetting.value);
+        const lastSyncTime = new Date(liveData.timestamp).getTime();
+        const nowTime = new Date().getTime();
+
+        // If telemetry was received within last 10 minutes, consider router online via push!
+        if (nowTime - lastSyncTime < 10 * 60 * 1000) {
+          routerConnected = true;
+        }
+        liveClients = liveData.liveClients || [];
+        arpMap = liveData.arpMap || {};
+      }
+    } catch {
+      /* ignore parse errors */
+    }
   }
 
   try {
